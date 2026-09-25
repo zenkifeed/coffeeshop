@@ -1,8 +1,9 @@
-// Cảnh 3D low-poly dựng hoàn toàn bằng code. Không biết gì về luật chơi:
+// Cảnh 3D dựng hoàn toàn bằng code: phòng low-poly ở đây, đồ vật trên quầy ở props.js. Không biết gì về luật chơi:
 // game.js gọi vào các hàm bên dưới và nhận lại sự kiện chạm qua `handlers`.
 import * as THREE from 'three';
 import { COMP } from './data.js';
 import { motionScale } from './feel.js';
+import * as P from './props.js';
 
 const TOP_MAIN = 0.98, TOP_BACK = 0.96;
 const CUST_Z = -1.35, DOOR = new THREE.Vector3(3.4, 0, -4.4);
@@ -39,6 +40,7 @@ export function createScene(canvas, handlers) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  P.initProps(renderer);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3e3cc);
@@ -154,18 +156,29 @@ export function createScene(canvas, handlers) {
   cupNode.position.copy(cupHome);
   scene.add(cupNode);
   const cupSp = spring();
-  const glassMat = mat(0xeaf6fb, { transparent: true, opacity: 0.45, roughness: 0.1, flatShading: false, depthWrite: false });
-  const glass = cyl(0.16, 0.12, 1, glassMat, 0, 0.5, 0, cupNode, 16, true);
-  glass.castShadow = false;
+  const glassMat = P.glassMat();
+  const glasses = {};
+  [['M', 0.34], ['L', 0.42]].forEach(([k, h]) => { const m = mesh(P.glassGeo(h), glassMat, 0, 0, 0, cupNode); m.castShadow = false; m.renderOrder = 2; glasses[k] = m; });
   const layers = {};
   Object.keys(COMP).forEach(k => {
-    const m = cyl(0.145, 0.145, 1, mat(COMP[k].color, { roughness: 0.35, flatShading: false }), 0, 0, 0, cupNode, 16);
+    // hơi tự sáng để màu nước không bị xỉn khi nhìn qua thành ly
+    const m = mesh(P.layerGeo(), mat(COMP[k].color, { roughness: 0.3, flatShading: false, emissive: COMP[k].color, emissiveIntensity: 0.22 }), 0, 0, 0, cupNode);
     m.visible = false;
+    m.frustumCulled = false;
     m.userData = { h: 0, y: 0, th: 0, ty: 0 };
     layers[k] = m;
   });
-  const iceMat = mat(0xdff4ff, { transparent: true, opacity: 0.85, roughness: 0.1 });
-  const cubes = [[-0.05, 0.03], [0.05, -0.02], [0, 0.06]].map(([x, z]) => { const c = box(0.08, 0.08, 0.08, iceMat, x, 0, z, cupNode); c.rotation.set(0.4, x * 9, 0.3); c.visible = false; c.userData = { y: 0, vy: 0, rest: 0 }; return c; });
+  // Nắn khối trụ đơn vị thành lớp nước từ y0 tới y1, bán kính theo lòng ly loe ở từng độ cao.
+  function shapeLayer(m, y0, y1) {
+    const p = m.geometry.attributes.position, b = m.geometry.userData.base;
+    for (let i = 0; i < p.count; i++) {
+      const y = y0 + (b[i * 3 + 1] + 0.5) * (y1 - y0), r = P.glassInnerR(cupH, y);
+      p.setXYZ(i, b[i * 3] * r, y, b[i * 3 + 2] * r);
+    }
+    p.needsUpdate = true;
+  }
+  const iceMat = new THREE.MeshStandardMaterial({ color: 0xe6f7ff, transparent: true, opacity: 0.8, roughness: 0.08 });
+  const cubes = [[-0.05, 0.03], [0.05, -0.02], [0, 0.06]].map(([x, z]) => { const c = mesh(P.iceGeo(), iceMat, x, 0, z, cupNode); c.rotation.set(0.4, x * 9, 0.3); c.visible = false; c.renderOrder = 1; c.userData = { y: 0, vy: 0, rest: 0 }; return c; });
   const stream = cyl(0.014, 0.014, 1, mat(COMP.shot.color), 0, 0, 0, scene, 6);
   stream.visible = false;
   cupNode.visible = false;
@@ -176,13 +189,13 @@ export function createScene(canvas, handlers) {
     if (!cup.size) { hadCup = false; hadIce = false; Object.values(layers).forEach(m => { m.visible = false; m.userData.h = 0; }); cubes.forEach(c => { c.visible = false; }); return; }
     if (!hadCup) { hadCup = true; cupSp.v = -0.45 * motionScale; cupSp.vel = 0; }
     cupH = cup.size === 'L' ? 0.42 : 0.34;
-    glass.scale.y = cupH;
-    glass.position.y = cupH / 2;
-    const inner = cupH * 0.92;
+    glasses.M.visible = cup.size !== 'L';
+    glasses.L.visible = cup.size === 'L';
+    const inner = cupH - P.GLASS_BASE - 0.035;
     const raw = cup.comps.map(k => (k === 'shot' ? COMP.shot.h * Math.min(1.4, cup.shotP / 0.74) : COMP[k].h));
     const sum = raw.reduce((a, b) => a + b, 0);
     const k = sum > inner ? inner / sum : 1;
-    let y = 0.01;
+    let y = P.GLASS_BASE;
     Object.entries(layers).forEach(([key, m]) => { if (!cup.comps.includes(key)) { m.visible = false; m.userData.h = 0; } });
     cup.comps.forEach((c, i) => {
       const h = Math.max(0.001, raw[i] * k), m = layers[c];
@@ -191,7 +204,9 @@ export function createScene(canvas, handlers) {
       m.userData.ty = y + h / 2;
       y += h;
     });
-    layers.shot.material.color.set(cup.comps.includes('water') ? 0x5a3520 : COMP.shot.color);
+    const shotC = cup.comps.includes('water') ? 0x5a3520 : COMP.shot.color;
+    layers.shot.material.color.set(shotC);
+    layers.shot.material.emissive.set(shotC);
     if (cup.ice && !hadIce) {
       hadIce = true;
       cubes.forEach((c, i) => { c.visible = true; c.userData.rest = Math.max(0.06, y - 0.04 - i * 0.03); c.userData.y = c.userData.rest + 0.5 + i * 0.12; c.userData.vy = 0; });
@@ -302,16 +317,10 @@ export function createScene(canvas, handlers) {
 
   /* ---------- ly bay tới tay khách: khoảnh khắc chạm là lúc ly tới tay, không phải lúc bấm ---------- */
   const flying = [];
-  const servedGeo = { body: new THREE.CylinderGeometry(0.1, 0.08, 0.24, 12), fill: new THREE.CylinderGeometry(0.085, 0.07, 0.18, 12), lid: new THREE.CylinderGeometry(0.105, 0.105, 0.03, 12), straw: new THREE.CylinderGeometry(0.012, 0.012, 0.18, 6) };
-  const servedMat = { body: mat(0xffffff, { transparent: true, opacity: 0.9 }), lid: mat(0xf2f2f2), straw: mat(0xe25b4a) };
   function serveFx(id, color, onArrive) {
     const c = custs.get(id);
     if (!c) return;
-    const g = new THREE.Group();
-    mesh(servedGeo.body, servedMat.body, 0, 0.12, 0, g);
-    mesh(servedGeo.fill, dropMat(color), 0, 0.1, 0, g);
-    mesh(servedGeo.lid, servedMat.lid, 0, 0.25, 0, g);
-    mesh(servedGeo.straw, servedMat.straw, 0.03, 0.33, 0, g);
+    const g = P.buildTakeaway(dropMat(color));
     g.position.copy(cupHome);
     scene.add(g);
     flying.push({ g, t: 0, life: 0.42, from: cupHome.clone(), cust: c, onArrive });
@@ -487,8 +496,8 @@ export function createScene(canvas, handlers) {
       const u = m.userData;
       u.h += (u.th - u.h) * f;
       u.y += (u.ty - u.y) * f;
-      m.scale.y = Math.max(0.001, u.h);
-      m.position.y = u.y;
+      const h = Math.max(0.001, u.h);
+      shapeLayer(m, u.y - h / 2, u.y + h / 2);
     });
     cubes.forEach(c => {
       if (!c.visible) return;
@@ -618,94 +627,24 @@ function buildCounters(scene, stations, pickables) {
   box(4.8, 0.88, 1.4, wood, 0, 0.44, 1.9, scene);
   box(5.0, 0.06, 1.5, top, 0, 0.93, 1.9, scene);
 
-  const cupM = mat(0xdfeaf0, { transparent: true, opacity: 0.9, roughness: 0.2 }), sleeve = mat(0xc8a27a);
-  const stack = (h) => g => { for (let i = 0; i < 6; i++) cyl(0.15, 0.11, h, cupM, 0, h / 2 + i * 0.05, 0, g, 12, true); cyl(0.145, 0.13, h * 0.35, sleeve, 0, h * 0.5 + 0.25, 0, g, 12); };
-  station(scene, stations, pickables, 'cupM', -2.0, TOP_MAIN, 0.2, stack(0.28), [0.42, 0.6, 0.42]);
-  station(scene, stations, pickables, 'cupL', -1.35, TOP_MAIN, 0.2, stack(0.36), [0.46, 0.7, 0.46]);
+  station(scene, stations, pickables, 'cupM', -2.0, TOP_MAIN, 0.2, g => P.buildGlassStack(g, 0.34), [0.42, 0.6, 0.42]);
+  station(scene, stations, pickables, 'cupL', -1.35, TOP_MAIN, 0.2, g => P.buildGlassStack(g, 0.42), [0.46, 0.7, 0.46]);
+  station(scene, stations, pickables, 'espresso', 0, TOP_MAIN, -0.12, P.buildEspresso, [1.4, 0.95, 0.9], true);
+  station(scene, stations, pickables, 'trash', 1.9, TOP_MAIN, 0.22, P.buildTrash, [0.5, 0.5, 0.5]);
 
-  station(scene, stations, pickables, 'espresso', 0, TOP_MAIN, -0.12, g => {
-    const red = mat(0xe25b4a), steel = mat(0xd9dde0, { metalness: 0.5, roughness: 0.3 }), dark = mat(0x2d2a28);
-    box(1.3, 0.78, 0.55, red, 0, 0.39, -0.05, g);
-    box(1.34, 0.06, 0.6, steel, 0, 0.8, -0.05, g);
-    box(1.34, 0.12, 0.6, steel, 0, 0.06, -0.05, g);
-    cyl(0.1, 0.12, 0.12, steel, 0, 0.52, 0.28, g, 12);
-    box(0.08, 0.05, 0.3, dark, 0, 0.45, 0.45, g);
-    box(0.7, 0.04, 0.3, steel, 0, 0.02, 0.36, g);
-    const gauge = cyl(0.1, 0.1, 0.03, mat(0xfffaf0), -0.4, 0.58, 0.23, g, 14);
-    gauge.rotation.x = Math.PI / 2;
-    box(0.015, 0.07, 0.01, dark, -0.4, 0.6, 0.25, g);
-    [0.32, 0.45].forEach(x => sph(0.035, mat(0x7de08b, { emissive: 0x2a8a3a }), x, 0.6, 0.23, g, 6, 4));
-    [-0.35, 0.35].forEach(x => cyl(0.06, 0.05, 0.08, mat(0xffffff), x, 0.87, -0.05, g, 8));
-  }, [1.4, 0.95, 0.9], true);
-
-  station(scene, stations, pickables, 'trash', 1.9, TOP_MAIN, 0.22, g => {
-    cyl(0.2, 0.17, 0.34, mat(0x4a4f55), 0, 0.17, 0, g, 12);
-    cyl(0.215, 0.215, 0.04, mat(0x6d747c), 0, 0.35, 0, g, 12);
-  }, [0.5, 0.5, 0.5]);
-
-  const zA = 1.6, zB = 2.25;
   const reg = new THREE.Group();
   reg.position.set(1.15, TOP_MAIN, -0.28);
-  box(0.5, 0.25, 0.4, mat(0x5b7c99), 0, 0.12, 0, reg);
-  const scr = box(0.38, 0.22, 0.04, mat(0x2d2a28), 0, 0.36, -0.08, reg);
-  scr.rotation.x = -0.3;
+  P.buildRegister(reg);
   scene.add(reg);
 
-  station(scene, stations, pickables, 'condensed', -1.8, TOP_BACK, zA, g => {
-    cyl(0.13, 0.13, 0.22, mat(0xf2f2f2, { metalness: 0.3 }), 0, 0.11, 0, g, 14);
-    cyl(0.135, 0.135, 0.1, mat(0x3b6fb6), 0, 0.11, 0, g, 14);
-    cyl(0.12, 0.12, 0.01, mat(0xd8d8d8), 0, 0.225, 0, g, 14);
-  }, [0.4, 0.4, 0.4]);
-
-  station(scene, stations, pickables, 'milk', -0.9, TOP_BACK, zA, g => {
-    box(0.24, 0.34, 0.24, mat(0xffffff), 0, 0.17, 0, g);
-    box(0.25, 0.1, 0.25, mat(0x5aa9e6), 0, 0.22, 0, g);
-    const roof = box(0.18, 0.18, 0.24, mat(0xffffff), 0, 0.36, 0, g);
-    roof.rotation.z = Math.PI / 4;
-    cyl(0.03, 0.03, 0.04, mat(0x5aa9e6), 0.05, 0.44, 0.05, g, 8);
-  }, [0.4, 0.55, 0.4]);
-
-  station(scene, stations, pickables, 'steam', 0, TOP_BACK, zA, g => {
-    const steel = mat(0xcfd4d8, { metalness: 0.6, roughness: 0.25 });
-    cyl(0.12, 0.14, 0.26, steel, 0, 0.13, 0, g, 14);
-    const h = mesh(new THREE.TorusGeometry(0.07, 0.02, 6, 10, Math.PI), steel, 0.15, 0.14, 0, g);
-    h.rotation.z = -Math.PI / 2;
-    const wand = cyl(0.012, 0.012, 0.4, steel, -0.05, 0.36, 0, g, 6);
-    wand.rotation.z = 0.35;
-  }, [0.45, 0.6, 0.45]);
-
-  station(scene, stations, pickables, 'water', 0.9, TOP_BACK, zA, g => {
-    const k = mat(0x9fcfd8);
-    cyl(0.11, 0.16, 0.26, k, 0, 0.13, 0, g, 12);
-    cyl(0.03, 0.03, 0.05, mat(0x2d2a28), 0, 0.29, 0, g, 8);
-    const sp = cyl(0.018, 0.02, 0.3, k, 0.2, 0.2, 0, g, 6);
-    sp.rotation.z = -0.9;
-    const hd = mesh(new THREE.TorusGeometry(0.1, 0.022, 6, 10, Math.PI), mat(0x2d2a28), -0.14, 0.16, 0, g);
-    hd.rotation.z = Math.PI / 2;
-  }, [0.5, 0.45, 0.4]);
-
-  station(scene, stations, pickables, 'ice', 1.8, TOP_BACK, zA, g => {
-    box(0.55, 0.2, 0.42, mat(0xcfd4d8, { metalness: 0.5, roughness: 0.3 }), 0, 0.1, 0, g);
-    const ice = mat(0xe3f6ff, { transparent: true, opacity: 0.9, roughness: 0.1 });
-    [[-0.15, -0.08], [0, 0.05], [0.14, -0.04], [-0.05, -0.1], [0.12, 0.1], [-0.16, 0.1]].forEach(([x, z], i) => { const c = box(0.09, 0.09, 0.09, ice, x, 0.22, z, g); c.rotation.set(i * 0.5, i, 0.2); });
-    const sc = box(0.08, 0.03, 0.22, mat(0xb8bec4, { metalness: 0.5 }), 0.2, 0.28, 0.08, g);
-    sc.rotation.x = -0.5;
-  }, [0.6, 0.4, 0.5]);
-
-  station(scene, stations, pickables, 'caramel', -0.6, TOP_BACK, zB, g => {
-    cyl(0.08, 0.08, 0.3, mat(0xc9812c, { transparent: true, opacity: 0.9, roughness: 0.2 }), 0, 0.15, 0, g, 10);
-    cyl(0.03, 0.03, 0.08, mat(0x2d2a28), 0, 0.34, 0, g, 8);
-    box(0.12, 0.025, 0.04, mat(0x2d2a28), 0.04, 0.39, 0, g);
-    cyl(0.082, 0.082, 0.1, mat(0xfff4dc), 0, 0.13, 0, g, 10);
-  }, [0.35, 0.5, 0.35]);
-
-  station(scene, stations, pickables, 'saltcream', 0.6, TOP_BACK, zB, g => {
-    cyl(0.18, 0.13, 0.13, mat(0xffffff), 0, 0.065, 0, g, 14);
-    const d = mesh(new THREE.SphereGeometry(0.15, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xfff3e0), 0, 0.12, 0, g);
-    d.scale.y = 0.6;
-    sph(0.025, mat(0xe8e0d0), 0.05, 0.2, 0.03, g, 6, 4);
-  }, [0.45, 0.35, 0.45]);
-
+  const zA = 1.6, zB = 2.25;
+  station(scene, stations, pickables, 'condensed', -1.8, TOP_BACK, zA, P.buildCan, [0.4, 0.4, 0.4]);
+  station(scene, stations, pickables, 'milk', -0.9, TOP_BACK, zA, P.buildCarton, [0.4, 0.55, 0.4]);
+  station(scene, stations, pickables, 'steam', 0, TOP_BACK, zA, P.buildPitcher, [0.45, 0.6, 0.45]);
+  station(scene, stations, pickables, 'water', 0.9, TOP_BACK, zA, P.buildKettle, [0.5, 0.45, 0.4]);
+  station(scene, stations, pickables, 'ice', 1.8, TOP_BACK, zA, P.buildIceBin, [0.6, 0.4, 0.5]);
+  station(scene, stations, pickables, 'caramel', -0.6, TOP_BACK, zB, P.buildSyrup, [0.35, 0.5, 0.35]);
+  station(scene, stations, pickables, 'saltcream', 0.6, TOP_BACK, zB, P.buildCreamBowl, [0.45, 0.35, 0.45]);
 }
 
 function buildPerson(look) {

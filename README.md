@@ -5,7 +5,7 @@ Game quản lý quán cà phê 3D chạy thẳng trên trình duyệt. Mỗi ng�
 - **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
 
-Toàn bộ đồ hoạ 3D là khối low-poly dựng bằng code Three.js, không có file ảnh hay model. Âm thanh tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
+Toàn bộ đồ hoạ 3D dựng bằng code Three.js, không có file ảnh hay model. Phòng và khách là khối low-poly; đồ vật trên quầy (ly thuỷ tinh, máy pha, chai lọ, ấm) dựng bằng khối xoay và khối bo góc, bóng mịn, có phản chiếu nhẹ để ra chất inox, sứ, thuỷ tinh. Âm thanh tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
 
 ## Chạy trên máy
 
@@ -129,7 +129,8 @@ index.html          trang game, importmap trỏ Three.js
 style.css           giao diện
 src/data.js         số liệu: nguyên liệu, món, nâng cấp, sự kiện, nhiệm vụ tân binh, cấu hình kinh tế
 src/logic.js        luật chơi thuần, không dính DOM hay 3D (kiểm thử được bằng Node)
-src/scene.js        cảnh 3D: quán, quầy, khách, ly, biển hiệu, hạt hiệu ứng, máy quay
+src/scene.js        cảnh 3D: quán, quầy, khách, ly đang pha, biển hiệu, hạt hiệu ứng, máy quay
+src/props.js        mô hình đồ vật: ly thuỷ tinh, ly mang đi, máy espresso, nguyên liệu, thùng rác, máy tính tiền
 src/game.js         điều phối: màn chuẩn bị, bán hàng, tổng kết, giao diện, pop-up, hướng dẫn
 src/coach.js        bong bóng chỉ dẫn cho người mới (trỏ vào nút hoặc điểm 3D)
 src/save.js         lưu trữ: bản chính, bản dự phòng, phát hiện máy chặn lưu
