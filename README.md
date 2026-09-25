@@ -2,7 +2,7 @@
 
 Game quản lý quán cà phê 3D chạy thẳng trên trình duyệt. Mỗi ngày bạn nhập hàng, đặt giá, mở cửa, rồi tự tay pha từng ly cho khách trong khoảng 3 phút (7:00–22:00 trong game). Pha nhanh, đúng món, giá hợp lý thì được nhiều sao, sao cao thì khách đông.
 
-- **Chơi ngay:** https://coffeeshop-five-lemon.vercel.app
+- **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
 
 Toàn bộ đồ hoạ 3D là khối low-poly dựng bằng code Three.js, không có file ảnh hay model. Âm thanh tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
@@ -143,13 +143,11 @@ Muốn chỉnh cân bằng game (giá, hạn dùng, lượng khách, thời gian
 
 ## Đưa lên web
 
-Bản chơi online chạy trên Vercel dưới dạng trang tĩnh, không có bước build. Sau khi đẩy code lên GitHub, cập nhật bản online bằng:
+Bản chơi online chạy trên Vercel (project `coffeeshop`) dưới dạng trang tĩnh, không có bước build, ở địa chỉ https://happycoffeeshop.vercel.app.
 
-```bash
-npx vercel deploy --prod
-```
+Project đã nối với repo GitHub: **đẩy code lên nhánh `main` là Vercel tự cập nhật bản online** sau vài giây, không cần làm gì thêm. Đổi tên miền ở *Vercel › coffeeshop › Settings › Domains*.
 
-Lần đầu trên máy mới cần `npx vercel login` và `npx vercel link --project coffeeshop`. Lệnh link tạo file `.env.local` chứa token, file này đã nằm trong `.gitignore`.
+Muốn đưa lên từ máy mà không qua GitHub thì chạy `npx vercel deploy --prod`. Lần đầu trên máy mới cần `npx vercel login` và `npx vercel link --project coffeeshop`; lệnh link tạo file `.env.local` chứa token, file này đã nằm trong `.gitignore`.
 
 ## Cập nhật tài liệu
 
