@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f3e3cc">
+<title>Quán Cà Phê Nhỏ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<header id="hud">
+  <div class="h-l">
+    <button id="pauseBtn" class="icb" aria-label="Tạm dừng" hidden></button>
+    <button id="setBtn" class="icb ghosty" aria-label="Cài đặt"></button>
+    <div class="day"><span id="hDay">Ngày 1</span><small id="hSub">Chuẩn bị</small></div>
+  </div>
+  <div class="h-m" id="hMoneyBox"><i id="hCoin"></i><span id="hMoney">0k</span></div>
+  <div class="h-r"><span class="hstars"><span id="hStarBg"></span><span id="hStarFill"></span></span><small id="hRate">4,0</small></div>
+  <div id="dayBarBox" hidden><i id="dayBar"></i></div>
+</header>
+<div id="labels"></div>
+<div id="bubbles"></div>
+<div id="gauge" hidden><div class="band"></div><div class="fill"></div></div>
+<div id="combo" hidden></div>
+<div id="panel" hidden></div>
+<div id="prep"></div>
+<div id="toasts"></div>
+<div id="flash"></div>
+<div id="modal" hidden><div class="card" id="card"></div></div>
+<div id="splash">
+  <div class="sp-in">
+    <div class="logo"></div>
+    <h1>Quán Cà Phê Nhỏ</h1>
+    <p class="tap">Chạm để mở quán</p>
+  </div>
+</div>
+<script type="module">
+  import { boot } from './src/game.js';
+  boot();
+</script>
+</body>
+</html>
