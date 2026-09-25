@@ -1,10 +1,11 @@
 // Điều phối: màn chuẩn bị, vòng bán hàng thời gian thực, tổng kết ngày, và toàn bộ lớp phản hồi.
-import { ING, COMP, DRINKS, UPG, EVENTS, CFG } from './data.js';
+import { ING, COMP, DRINKS, UPG, EVENTS, CFG, ROOKIE } from './data.js';
 import * as L from './logic.js';
 import { createScene } from './scene.js';
 import { sfx, pour as pourSnd, unlock, setMuted } from './audio.js';
 import { opts, saveOpts, haptic, motionScale } from './feel.js';
 import * as SV from './save.js';
+import { Coach } from './coach.js';
 
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -20,6 +21,8 @@ const ICON = {
   flame: '<svg viewBox="0 0 24 24"><path d="M12 2.5c1 3.6 5.5 5.5 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.2 2.6-5.3.1 1.7.8 2.8 1.9 3.3C10.5 8.4 11.3 5 12 2.5z" fill="#ff8a3d" stroke="#3a2317" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12.5c1.2 1.3 2.4 2 2.4 3.8a2.4 2.4 0 0 1-4.8 0c0-1.2.8-2.3 2.4-3.8z" fill="#ffd23f"/></svg>',
   pencil: '<svg viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3L8.5 19z" fill="#f0b43c" stroke="#3a2317" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.5 7l3.5 3.5" stroke="#3a2317" stroke-width="1.8"/><path d="M4 20l1-4.5 3.5 3.5z" fill="#3a2317"/></svg>',
   dice: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="#fff" stroke="#3a2317" stroke-width="2"/><g fill="#3a2317"><circle cx="8.3" cy="8.3" r="1.6"/><circle cx="15.7" cy="8.3" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="8.3" cy="15.7" r="1.6"/><circle cx="15.7" cy="15.7" r="1.6"/></g></svg>',
+  check: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4fa883" stroke="#3a2317" stroke-width="2"/><path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  gift: '<svg viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="11.5" rx="2" fill="#e25b4a" stroke="#3a2317" stroke-width="2"/><rect x="2.5" y="6.5" width="19" height="4.5" rx="1.5" fill="#f0b43c" stroke="#3a2317" stroke-width="2"/><path d="M12 6.5v14" stroke="#3a2317" stroke-width="2"/><path d="M12 6.5c-2-3.5-6-3-5-.5.6 1.4 5 .5 5 .5zm0 0c2-3.5 6-3 5-.5-.6 1.4-5 .5-5 .5z" fill="#f0b43c" stroke="#3a2317" stroke-width="1.6"/></svg>',
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="#fffaf2" stroke="currentColor" stroke-width="2"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
 };
 function drinkIcon(o) {
@@ -49,9 +52,11 @@ function hydrate(d) {
   if (d.money < 0) return { ...L.freshState(), shopName: d.shopName || '' };
   const f = L.freshState();
   const s = { ...f, ...d, stock: { ...f.stock, ...d.stock }, sell: { ...f.sell, ...d.sell }, unlocked: { ...f.unlocked, ...d.unlocked }, upg: { ...d.upg } };
+  // Bản lưu từ trước khi có hướng dẫn thì không lấy cờ của quán mới, để bước nhận diện người chơi cũ chạy.
+  if (!d.ftue) delete s.ftue;
   L.sanitizePrices(s);
   if (s.evDay !== s.day) L.rollDay(s);
-  return s;
+  return L.migrateFtue(s);
 }
 function save() {
   const ok = SV.writeSave(S);
@@ -201,6 +206,7 @@ function renderPrep() {
       <div class="prep-top"><h2 id="shopTitle">${esc(S.shopName || 'Quán Cà Phê Nhỏ')}</h2><button class="ghost ren" id="rename">${ICON.pencil}Đổi tên</button></div>
       ${e ? `<div class="evc"><b>Hôm nay: ${EVENTS[e.id].n}</b><small>${esc(L.evText(S, e))}</small></div>` : ''}
       <div class="lvc">Cấp ${lv}: ${lv === 1 ? 'khách gọi món và size' : lv === 2 ? 'khách chọn thêm nóng hay đá' : 'một khách gọi tới 3 ly'}${lv < 3 ? ` · lên cấp ${lv + 1} từ ngày ${lv === 1 ? CFG.levels.l2 : CFG.levels.l3}` : ''}</div>
+      ${rookieHTML()}
       <div class="tabs">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${R.tab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
       <div class="pane" id="pane"></div>
       <div class="prep-foot" id="foot"></div>
@@ -208,6 +214,8 @@ function renderPrep() {
   R.animSheet = false;
   $('prep').querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => { if (R.tab === b.dataset.tab) return; R.tab = b.dataset.tab; R.animPane = true; renderPrep(); }; });
   $('rename').onclick = renameDlg;
+  bindRookie();
+  if (L.checkMenuTut(S)) save();
   scene.setSign(S.shopName, S.upg.sign);
   renderPane();
   renderFoot();
@@ -259,7 +267,10 @@ function paneMenu() {
       const k = b.dataset.unlock, c = DRINKS[k].unlock;
       if (S.money < c) return toast(short(c), true);
       const [x, y] = centerOf(b);
-      S.money -= c; S.cur.upgrades += c; S.unlocked[k] = true; save();
+      S.money -= c; S.cur.upgrades += c; S.unlocked[k] = true;
+      rookie('unlock');
+      if (S.ftue.menuTut === 'go') { S.ftue.menuTut = 'done'; Coach.clear('menutut'); }
+      save();
       sfx.star(); haptic('reward'); domBurst(x, y);
       toast('Đã thêm ' + DRINKS[k].n + ' vào menu');
       renderPrep();
@@ -342,6 +353,7 @@ function renameDlg() {
     if (v === cur) return refuse('Đây là tên đang dùng, thử tên khác xem');
     inp.blur();
     S.shopName = v;
+    rookie('rename');
     save();
     document.title = v;
     sign.classList.add('stamp');
@@ -436,12 +448,7 @@ function startDay(resume) {
   saveLive();
   const lv = L.level(S.day);
   if (resume) toast('Bán tiếp ngày ' + S.day + ' từ ' + clockOf(R.t));
-  else if (S.day === 1 && !S.tutSeen) {
-    S.tutSeen = true;
-    save();
-    R.paused = true;
-    modal(`<h2>Cách pha</h2><ol class="how"><li>Chạm <b>chồng ly M hoặc L</b> để lấy ly.</li><li><b>Nhấn giữ máy espresso</b>, thả tay khi vạch vào vùng xanh. Vào giữa vùng xanh là <b>Hoàn hảo</b>.</li><li>Chạm sữa đặc, sữa tươi, đá… theo món khách gọi.</li><li><b>Chạm vào khách</b> để giao ly.</li></ol><p class="muted">Vòng sáng vàng luôn chỉ chỗ cần chạm tiếp theo.</p>`, [['Mở cửa', () => { R.paused = false; }, 1]]);
-  } else if (lv > (S.seenLv || 1)) {
+  else if (lv > (S.seenLv || 1)) {
     S.seenLv = lv;
     save();
     R.paused = true;
@@ -566,6 +573,7 @@ function stopPour(silent) {
   cup.shotQ = q;
   scene.bumpCup(0.2);
   if (q === 'ok' && L.shotPerfect(cup.shotP, S.upg.grinder)) {
+    rookie('perfect');
     floatText(s.x, s.y - 30, 'Hoàn hảo!', 'perfect');
     sfx.perfect();
     haptic('perfect');
@@ -682,6 +690,7 @@ function onCustomer(id) {
   S.money += p;
   S.cur.sales += p;
   S.cur.served++;
+  rookie('sale');
   const left = c.done.filter(x => !x).length;
   let st = null, tip = 0;
   if (!left) {
@@ -713,7 +722,9 @@ function serveImpact(c, p, tip, st, left) {
   coinFly(hp.x, hp.y, left ? 2 : 4);
   if (left) { floatText(hp.x, hp.y - 40, `còn ${left} ly`, 'good small'); return; }
   floatText(hp.x, hp.y - 44, starsHTML(st.s, 'fly'), 'starsrow');
+  if (!S.ftue.coached) finishCoach();
   if (big) {
+    rookie('fivestar');
     R.combo++;
     R.freeze = 0.07;
     setTimeout(sfx.star, 140);
@@ -815,7 +826,7 @@ function panel(focus) {
   const d = cup.size ? L.identifyDrink(cup) : null;
   const now = cup.size ? `Ly ${cup.size}: ${cup.comps.length ? cup.comps.map(c => COMP[c].s).join(' + ') : 'trống'}${cup.ice ? ' + Đá' : ''}${d ? ` → ${DRINKS[d].n}` : ''}` : 'Chưa lấy ly';
   const step = o ? L.nextStep(cup, o) : { key: null, text: R.closing ? 'Đã đóng cửa' : 'Chờ khách tới quầy…' };
-  scene.setHighlight(opts.guide !== false && !R.pouring ? step.key : null);
+  scene.setHighlight(guideOn() && !R.pouring ? step.key : null);
   const html = `<div class="hint">${esc(step.text)}</div><div class="now">${esc(now)}</div>`;
   const pn = $('panel');
   if (pn._h !== html) {
@@ -830,6 +841,7 @@ function panel(focus) {
 /* ================= CUỐI NGÀY ================= */
 function endDay() {
   R.mode = 'summary';
+  Coach.clear();
   stopPour(true);
   clearBubbles();
   hideCombo(false);
@@ -849,6 +861,7 @@ function endDay() {
     <div class="ledger">
       <div><span>Tiền bán</span><span data-m="${r.sales}" data-s="+">+0k</span></div>
       <div><span>Tip</span><span data-m="${r.tips}" data-s="+">+0k</span></div>
+      ${r.bonus ? `<div><span>Thưởng nhiệm vụ</span><span>+${fmt(r.bonus)}</span></div>` : ''}
       <div><span>Nhập hàng</span><span>−${fmt(r.buy)}</span></div>
       ${r.upgrades ? `<div><span>Mở món, nâng cấp</span><span>−${fmt(r.upgrades)}</span></div>` : ''}
       <div><span>Mặt bằng + điện nước</span><span>−${fmt(r.rent + r.util)}</span></div>
@@ -891,8 +904,8 @@ function settings(back) {
   modal(`<h2>Cài đặt</h2>
     <div class="set"><button data-tap data-o="sound"><span>Âm thanh</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
     <button data-tap data-o="haptic"><span>Rung khi chạm</span><b class="${opts.haptic ? 'on' : ''}">${onOff(opts.haptic)}</b></button>
-    <button data-tap data-o="guide"><span>Vòng sáng chỉ dẫn</span><b class="${opts.guide !== false ? 'on' : ''}">${onOff(opts.guide !== false)}</b></button></div>
-    <p class="muted small">Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi, âm thanh và rung vẫn giữ.</p>`,
+    <button data-tap data-o="guide"><span>Vòng sáng chỉ dẫn</span><b class="${opts.guide !== false ? 'on' : ''}">${guideLabel()}</b></button></div>
+    <p class="muted small">Vòng sáng "Tự động" chỉ hiện trong 5 ngày đầu. Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi, âm thanh và rung vẫn giữ.</p>`,
   // Khôi phục và chơi lại chỉ có ở màn chuẩn bị: làm giữa ngày thì khách và ly đang pha bị bỏ dở.
   [...(R.mode === 'prep' ? [
     ['Khôi phục bản tự lưu', () => restoreDlg(() => settings(back))],
@@ -901,13 +914,14 @@ function settings(back) {
   $('card').querySelectorAll('[data-o]').forEach(b => {
     b.onclick = () => {
       const k = b.dataset.o;
-      opts[k] = k === 'guide' ? opts.guide === false : !opts[k];
+      if (k === 'guide') opts.guide = opts.guide == null ? true : opts.guide ? false : undefined;
+      else opts[k] = !opts[k];
       saveOpts();
       if (k === 'sound') setMuted(!opts.sound);
       if (k === 'haptic' && opts.haptic) haptic('primary');
       const on = k === 'guide' ? opts.guide !== false : opts[k];
       const t = b.querySelector('b');
-      t.textContent = onOff(on);
+      t.textContent = k === 'guide' ? guideLabel() : onOff(on);
       t.classList.toggle('on', on);
       punchEl(t);
     };
@@ -960,9 +974,99 @@ function bootChecks() {
   const steps = [];
   if (loaded.status === 'corrupt') steps.push(corruptDlg);
   if (!SV.storageOk()) { R.noStoreWarned = true; steps.push(storeWarn); }
+  if (!S.ftue.welcomed) steps.push(welcomeDlg);
   if (S.dayT != null) steps.push(resumeDlg);
   const run = () => { const f = steps.shift(); if (f) f(run); };
   run();
+}
+
+/* ================= HƯỚNG DẪN LẦN ĐẦU ================= */
+function welcomeDlg(next) {
+  modal(`<div class="wel-hero">${drinkIcon({ drink: 'sua', ice: true })}</div><h2>Chào mừng tới quán!</h2>
+    <ol class="how wel"><li><b>Mỗi sáng</b>: nhập hàng rồi mở cửa.</li><li><b>Khách gọi món</b>, bạn pha: lấy ly, giữ máy espresso, thêm sữa, đá.</li><li><b>Giao đúng và nhanh</b> thì được nhiều sao, khách kéo tới đông hơn.</li></ol>`,
+  [['Chỉ mình cách chơi', () => { S.ftue.welcomed = true; save(); renderPrep(); next(); }, 1],
+    ['Bỏ qua, mình tự chơi', () => { Object.assign(S.ftue, { welcomed: true, coached: true, skip: true }); save(); renderPrep(); next(); }]], 'welcome');
+}
+const coachOn = () => S.ftue.welcomed && !S.ftue.coached && !S.ftue.skip;
+function skipCoach() {
+  Object.assign(S.ftue, { coached: true, skip: true });
+  save();
+  Coach.clear();
+  toast('Đã tắt hướng dẫn. Vòng sáng vàng vẫn chỉ chỗ cần chạm trong vài ngày đầu');
+}
+function finishCoach() {
+  S.ftue.coached = true;
+  save();
+  Coach.clear();
+  setTimeout(() => { toast('Tuyệt! Bạn đã pha xong ly đầu tiên. Giờ tự phục vụ tiếp nhé'); sfx.perfect(); }, 900);
+}
+const guideOn = () => opts.guide === true || (opts.guide !== false && (S.day <= 5 || !S.ftue.coached));
+const guideLabel = () => opts.guide === true ? 'Luôn bật' : opts.guide === false ? 'Tắt' : 'Tự động';
+// Gọi mỗi khung hình: bước tiếp theo tính từ trạng thái thật, người chơi làm tới đâu bong bóng theo tới đó.
+function runCoach(focus) {
+  const skip = { key: 'ftue', onSkip: skipCoach };
+  if (R.mode === 'prep') {
+    if (S.ftue.menuTut === 'go' && !S.ftue.skip) {
+      if (R.tab !== 'menu') return Coach.show($('prep').querySelector('[data-tab="menu"]'), 'Bạn đủ tiền <b>mở món mới</b> rồi! Vào đây xem.', { key: 'menutut', place: 'below', onSkip: () => { S.ftue.menuTut = 'done'; save(); Coach.clear(); } });
+      return Coach.show($('pane') && $('pane').querySelector('[data-unlock]:not(.dis)'), 'Mở món này để khách có thêm lựa chọn, bán được giá cao hơn.', { key: 'menutut', place: 'above' });
+    }
+    if (!coachOn()) return Coach.clear();
+    if (planTotal() > 0) return Coach.show($('buy'), 'Bấm để <b>trả tiền nhập hàng</b>.', { ...skip, place: 'above' });
+    if (!openBlock()) return Coach.show($('open'), 'Đủ hàng rồi! Bấm <b>Mở cửa</b> để đón khách.', { ...skip, place: 'above' });
+    if (R.tab !== 'kho') return Coach.show($('prep').querySelector('[data-tab="kho"]'), 'Vào <b>Kho</b> để nhập hàng trước.', { ...skip, place: 'below' });
+    return Coach.show($('suggest'), 'Quán chưa có hàng. Bấm đây để <b>chọn sẵn</b> đủ nguyên liệu cho khoảng 30 ly.', { ...skip, place: 'above' });
+  }
+  if (R.mode !== 'sell' || !coachOn() || !focus) return Coach.clear('ftue');
+  const o = curOrder(focus), cup = R.cup;
+  if (R.pouring) {
+    const q = L.shotQuality(cup.shotP, S.upg.grinder);
+    return Coach.show($('gauge'), q === 'weak' ? 'Giữ tiếp… chờ vạch đen vào <b>vùng xanh</b>' : q === 'ok' ? '<b>THẢ TAY RA!</b>' : 'Quá vùng xanh rồi, thả ngay!', { ...skip, place: 'above' });
+  }
+  const step = L.nextStep(cup, o);
+  if (step.key === 'serve') return Coach.show(bubbleEls.get(focus.id), 'Xong ly rồi! <b>Chạm vào khách</b> để giao.', { ...skip, place: 'below' });
+  const text = !cup.size ? `<b>${esc(focus.name)}</b> gọi <b>${DRINKS[o.drink].n}</b>, ly ${o.size}${o.ice ? ' đá' : ''}. Chạm <b>chồng ly ${o.size}</b> để bắt đầu.`
+    : step.key === 'espresso' ? 'Nhấn và <b>GIỮ</b> máy espresso. Thả tay khi vạch vào <b>vùng xanh</b>.'
+    : step.key === 'ice' ? 'Khách uống đá: chạm <b>thùng đá</b>.'
+    : step.key === 'trash' ? esc(step.text)
+    : `Món này cần <b>${COMP[step.key].n.toLowerCase()}</b>: chạm vào đây.`;
+  Coach.show(() => scene.stationTop(step.key), text, { ...skip, place: 'above' });
+}
+
+/* ---------- nhiệm vụ tân binh ---------- */
+function rookie(id) {
+  if (!L.rookieDone(S, id)) return;
+  save();
+  if (!S.ftue.welcomed) return;
+  const t = ROOKIE.find(x => x.id === id);
+  setTimeout(() => { toast(`Xong nhiệm vụ: ${t.n}. Nhận +${fmt(t.reward)} ở màn chuẩn bị`); sfx.combo(4); }, 700);
+}
+function rookieHTML() {
+  if (!L.rookieActive(S)) return '';
+  const st = L.rookieState(S), done = st.filter(t => t.done).length, ready = st.filter(t => t.done && !t.claimed).length;
+  const open = R.questOpen ?? ready > 0;
+  const rows = st.map((t, i) => `<div class="rq-row${t.claimed ? ' got' : t.done ? ' ready' : ''}" style="--i:${i}"><i class="rq-ic">${t.done ? ICON.check : '<b></b>'}</i><span>${t.n}</span>${t.claimed ? '<em>Đã nhận</em>' : t.done ? `<button class="pri rq-claim" data-claim="${t.id}">Nhận +${fmt(t.reward)}</button>` : `<em class="rw">+${fmt(t.reward)}</em>`}</div>`).join('');
+  return `<div class="rq${open ? ' open' : ''}"><button class="rq-h" id="rqToggle"><i class="rq-gift">${ICON.gift}</i><span class="rq-t">Nhiệm vụ tân binh</span><span class="rq-bar"><i style="transform:scaleX(${(done / st.length).toFixed(3)})"></i></span><span class="rq-n">${done}/${st.length}</span>${ready ? `<span class="rq-badge">${ready} quà</span>` : ''}<span class="rq-car">▾</span></button>${open ? `<div class="rq-list">${rows}</div>` : ''}</div>`;
+}
+function bindRookie() {
+  const tg = $('rqToggle');
+  if (!tg) return;
+  tg.onclick = () => { R.questOpen = !tg.parentElement.classList.contains('open'); renderPrep(); };
+  $('prep').querySelectorAll('[data-claim]').forEach(b => {
+    b.onclick = () => {
+      const [x, y] = centerOf(b), v = L.rookieClaim(S, b.dataset.claim);
+      if (!v) return;
+      save();
+      sfx.coin(3);
+      setTimeout(sfx.star, 120);
+      haptic('reward');
+      domBurst(x, y, 18);
+      floatText(x, y - 10, '+' + fmt(v), 'money');
+      coinFly(x, y, 5);
+      const all = !L.rookieActive(S);
+      renderPrep();
+      if (all) { toast('Hoàn thành hết nhiệm vụ tân binh!'); domBurst(innerWidth / 2, innerHeight / 2, 30); }
+    };
+  });
 }
 
 function splash() {
@@ -998,7 +1102,7 @@ function frame(now) {
   textT -= realDt;
   labels(textT <= 0);
   if (textT <= 0) textT = 0.25;
-  if (R.mode === 'sell') { const f = focusCust(); bubbles(f); panel(f); gauge(); }
+  if (R.mode === 'sell') { const f = focusCust(); bubbles(f); panel(f); gauge(); runCoach(f); } else if (R.mode === 'prep') runCoach(null);
   hud();
   requestAnimationFrame(frame);
 }

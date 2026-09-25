@@ -109,7 +109,7 @@ body:not(.selling) .lbl { opacity: .55; }
 .tabs { display: flex; gap: 6px; margin-bottom: 6px; }
 .tabs button { flex: 1; min-height: 40px; padding: 6px 4px; border-radius: 12px; background: #f1e4d0; font-weight: 700; font-size: 14px; border: 2px solid transparent; }
 .tabs button.on { background: var(--brown); color: #fff; border-color: var(--ink); box-shadow: var(--shadow-sm); }
-.pane { overflow-y: auto; flex: 1; min-height: 120px; padding: 0 2px 4px; }
+.pane { overflow-y: auto; flex: 1; min-height: 76px; padding: 0 2px 4px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 2px; border-bottom: 2px dashed var(--line); }
 .enter { animation: rowIn .38s var(--ease-pop) both; animation-delay: calc(var(--i, 0) * 35ms); }
 @keyframes rowIn { from { transform: translateY(10px) scale(.96); opacity: 0; } }
@@ -250,6 +250,46 @@ button.ren svg { width: 18px; height: 18px; }
 .set b { min-width: 52px; padding: 2px 10px; border-radius: 10px; background: #e7d7c0; color: var(--soft); }
 .set b.on { background: var(--mint); color: #fff; }
 
+/* ---------- hướng dẫn lần đầu ---------- */
+.coach-bubble { position: fixed; left: 0; top: 0; z-index: 9; max-width: 250px; padding: 9px 13px 10px; border-radius: 14px; background: var(--ink); border: 3px solid var(--gold); box-shadow: 0 4px 0 #0007; color: #fff6e6; pointer-events: none; animation: coachPop .38s var(--ease-pop); will-change: transform; }
+.coach-bubble .cb-body { font-size: 14px; font-weight: 700; line-height: 1.3; text-align: center; }
+.coach-bubble .cb-body b { color: #ffd23f; }
+.coach-bubble.swap .cb-body { animation: hintIn .35s var(--ease-pop); }
+.coach-bubble .cb-skip { display: block; margin: 7px auto 0; min-height: 30px; padding: 2px 12px; border-radius: 10px; background: #ffffff1f; color: #e7d7c0; font-size: 12px; font-weight: 700; pointer-events: auto; }
+.coach-bubble .cb-tail { position: absolute; left: var(--tail-x, 50%); bottom: -10px; width: 15px; height: 15px; margin-left: -7.5px; background: var(--ink); border-right: 3px solid var(--gold); border-bottom: 3px solid var(--gold); transform: rotate(45deg); }
+.coach-bubble.below .cb-tail { bottom: auto; top: -10px; border: 0; border-left: 3px solid var(--gold); border-top: 3px solid var(--gold); }
+@keyframes coachPop { from { opacity: 0; scale: .8; } }
+.coach-glow { position: relative; z-index: 3; animation: coachGlow 1.1s ease-in-out infinite !important; }
+@keyframes coachGlow { 50% { box-shadow: 0 0 0 4px #ffd23fdd, 0 0 18px 4px #ffd23f99, 0 3px 0 var(--ink); } }
+.card.welcome { text-align: center; }
+.wel-hero { width: 76px; height: 86px; margin: 0 auto 4px; animation: logoIn .6s var(--ease-pop) both, bob 2.4s .6s ease-in-out infinite; }
+.wel-hero svg { width: 100%; height: 100%; }
+.how.wel { text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.how.wel b { color: var(--brown); }
+
+/* ---------- nhiệm vụ tân binh ---------- */
+.rq { flex: none; margin: 2px 0 8px; border-radius: 14px; background: #fff7e6; border: 2.5px solid var(--ink); box-shadow: var(--shadow-sm); overflow: hidden; }
+.rq-h { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 44px; padding: 6px 10px; background: transparent; text-align: left; font-weight: 800; font-size: 14px; }
+.rq-h:active { transform: none; }
+.rq-gift { width: 24px; height: 24px; flex: none; }
+.rq-t { flex: none; }
+.rq-bar { flex: 1; height: 8px; min-width: 30px; border-radius: 4px; background: #3a23171f; overflow: hidden; }
+.rq-bar i { display: block; height: 100%; background: var(--mint); transform-origin: left; transition: transform .5s var(--ease-out); }
+.rq-n { font-size: 12px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.rq-badge { padding: 1px 8px; border-radius: 10px; background: var(--red); color: #fff; font-size: 11px; border: 1.5px solid var(--ink); animation: breathe 1.4s ease-in-out infinite; }
+.rq-car { color: var(--soft); transition: transform .25s var(--ease-out); }
+.rq.open .rq-car { transform: rotate(180deg); }
+.rq-list { max-height: 21vh; overflow-y: auto; padding: 0 10px 8px; }
+.rq-row { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 3px 0; border-top: 2px dashed var(--line); font-size: 13px; font-weight: 700; animation: rowIn .35s var(--ease-pop) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.rq-row > span { flex: 1; }
+.rq-ic { width: 20px; height: 20px; flex: none; display: grid; place-items: center; }
+.rq-ic b { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid #c9b59f; }
+.rq-row em { font-style: normal; font-size: 12px; color: var(--soft); }
+.rq-row em.rw { color: #c9912a; font-weight: 800; }
+.rq-row.got { opacity: .55; }
+.rq-row.got > span { text-decoration: line-through; }
+.rq-claim { min-height: 36px !important; padding: 4px 10px !important; font-size: 13px; background: var(--mint) !important; animation: breathe 1.4s ease-in-out infinite; }
+
 /* ---------- màn mở ---------- */
 #splash { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #fff6e8, #f0d9b8); cursor: pointer; animation: splashFailsafe .4s 12s forwards; }
 #splash[hidden] { display: none; }
@@ -270,7 +310,8 @@ button.ren svg { width: 18px; height: 18px; }
 }
 /* Giảm chuyển động: bỏ lắc, nhún, trượt dài; giữ mờ dần, chớp màu và nảy nhỏ để phản hồi không mất. */
 @media (prefers-reduced-motion: reduce) {
-  .breathe, #gauge.over, .bub.low, .bub.focus .ic, .bub.wrong > *, .sp-in .logo, .sp-in .tap, #combo svg, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full { animation: none !important; }
+  .breathe, #gauge.over, .bub.low, .bub.focus .ic, .bub.wrong > *, .sp-in .logo, .sp-in .tap, #combo svg, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full, .wel-hero, .rq-badge, .rq-claim { animation: none !important; }
+  .coach-glow { animation: none !important; box-shadow: 0 0 0 4px #ffd23fdd, 0 3px 0 var(--ink) !important; }
   .prep-card.enter, .enter { animation-name: fadeIn !important; }
   .float, .float.perfect { animation-name: fadeIn !important; animation-direction: reverse !important; }
 }

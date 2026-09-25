@@ -209,5 +209,48 @@ console.log('Lưu trữ');
   delete globalThis.localStorage;
 }
 
+console.log('Hướng dẫn lần đầu và nhiệm vụ tân binh');
+{
+  const { ROOKIE } = await import('../src/data.js');
+  const S = L.freshState(seeded(5));
+  ok(S.ftue && !S.ftue.welcomed && !S.ftue.coached, 'quán mới: chưa chào mừng, chưa hướng dẫn');
+  ok(!L.rookieActive(S), 'chưa qua thẻ chào mừng thì chưa hiện nhiệm vụ');
+  S.ftue.welcomed = true;
+  ok(L.rookieActive(S), 'qua thẻ chào mừng thì hiện nhiệm vụ');
+  ok(L.rookieDone(S, 'sale') && !L.rookieDone(S, 'sale'), 'đánh dấu xong chỉ báo đúng một lần');
+  ok(!L.rookieDone(S, 'khong-co'), 'mã nhiệm vụ lạ thì bỏ qua');
+  ok(L.rookieClaim(S, 'perfect') === 0, 'chưa xong thì không nhận được thưởng');
+  const m0 = S.money, v = L.rookieClaim(S, 'sale');
+  ok(v === ROOKIE[0].reward && S.money === m0 + v && S.cur.bonus === v, 'nhận thưởng: cộng két và ghi vào sổ ngày');
+  ok(L.rookieClaim(S, 'sale') === 0 && S.money === m0 + v, 'không nhận thưởng hai lần');
+  ok(L.recRevenue(S.cur) === v, 'thưởng nhiệm vụ tính vào doanh thu ngày');
+  ROOKIE.forEach(t => { L.rookieDone(S, t.id); L.rookieClaim(S, t.id); });
+  ok(!L.rookieActive(S), 'nhận hết thì danh sách tự ẩn');
+
+  const vet = L.freshState(seeded(6));
+  delete vet.ftue; vet.day = 12;
+  L.migrateFtue(vet);
+  ok(vet.ftue.welcomed && vet.ftue.coached && !L.rookieActive(vet), 'bản lưu cũ đã chơi: không bắt học lại, không hiện nhiệm vụ');
+  const fresh = L.freshState(seeded(7));
+  delete fresh.ftue;
+  L.migrateFtue(fresh);
+  ok(!fresh.ftue.welcomed, 'bản lưu cũ chưa chơi ngày nào: vẫn được hướng dẫn');
+
+  const T = L.freshState(seeded(8));
+  T.ftue.welcomed = T.ftue.coached = true;
+  T.money = 100000;
+  ok(!L.checkMenuTut(T) && T.ftue.menuTut == null, 'chưa đủ tiền mở món thì chưa nhắc');
+  T.money = 200000;
+  ok(L.checkMenuTut(T) && T.ftue.menuTut === 'go', 'lần đầu đủ tiền mở món rẻ nhất thì bật nhắc');
+  ok(!L.checkMenuTut(T), 'đang nhắc thì không bật lại');
+  const U = L.freshState(seeded(9));
+  Object.assign(U.ftue, { welcomed: true, coached: true, skip: true });
+  U.money = 900000;
+  ok(!L.checkMenuTut(U), 'người chơi đã bỏ qua hướng dẫn thì không nhắc');
+  const V = L.freshState(seeded(10));
+  V.ftue.welcomed = V.ftue.coached = true; V.money = 900000; V.unlocked.latte = true;
+  ok(!L.checkMenuTut(V), 'đã tự mở món rồi thì không nhắc');
+}
+
 console.log(`\n${passes} đạt, ${fails} trượt`);
 process.exit(fails ? 1 : 0);

@@ -29,7 +29,7 @@ Thử trên điện thoại: điện thoại cùng mạng wifi với máy tính 
 3. Chạm sữa đặc, sữa tươi, sữa nóng, nước, đá… theo món khách gọi.
 4. **Chạm vào khách** để giao ly. Sai món thì ly bị đổ, khách mất kiên nhẫn.
 
-Vòng sáng vàng luôn chỉ chỗ cần chạm tiếp theo, dòng gợi ý phía dưới nói bước tiếp theo.
+**Lần đầu chơi** có thẻ chào mừng và bong bóng chỉ dẫn từng bước, từ nhập hàng tới giao ly đầu tiên (bỏ qua được). Kèm 5 nhiệm vụ tân binh có thưởng ở màn chuẩn bị. Vòng sáng vàng chỉ chỗ cần chạm tiếp theo trong 5 ngày đầu (đổi trong Cài đặt), dòng gợi ý phía dưới luôn nói bước tiếp theo.
 
 **Tiến trình:** từ ngày 4 khách chọn uống nóng hay đá, từ ngày 10 một khách có thể gọi 2–3 ly. Có sự kiện ngày: cuối tuần, ngày lễ, trời nắng, trời mưa, món hot, nhà cung cấp giảm giá. Két âm cuối ngày là phá sản.
 

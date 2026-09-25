@@ -359,6 +359,11 @@ export function createScene(canvas, handlers) {
     p.above = s.above;
     return p;
   }
+  // Đỉnh của trạm trên màn hình, để bong bóng chỉ dẫn trỏ vào.
+  function stationTop(key) {
+    const s = stations[key];
+    return s ? toScreen(s.group.localToWorld(tv.set(0, key === 'espresso' ? 0.35 : s.hit[1] * 0.9, key === 'espresso' ? 0.35 : 0))) : null;
+  }
   const machineScreen = () => toScreen(machine.group.localToWorld(tv.set(0.85, 0.5, 0.2)));
   const cupScreen = () => toScreen(at.cup(0.05));
 
@@ -539,7 +544,7 @@ export function createScene(canvas, handlers) {
   const render = () => renderer.render(scene, camera);
 
   resize();
-  return { resize, update, render, setSlots, addCustomer, customerLeave, customerArrived, shakeCustomer, bounceCustomer, setImpatient, headScreen, stationScreen, machineScreen, cupScreen, setCup, bumpCup, setPour, press, burstAt, serveFx, shake, punch, setHighlight, setStationEnabled, setSign, stationKeys: Object.keys(stations) };
+  return { resize, update, render, setSlots, addCustomer, customerLeave, customerArrived, shakeCustomer, bounceCustomer, setImpatient, headScreen, stationScreen, stationTop, machineScreen, cupScreen, setCup, bumpCup, setPour, press, burstAt, serveFx, shake, punch, setHighlight, setStationEnabled, setSign, stationKeys: Object.keys(stations) };
 }
 
 function starGeometry() {

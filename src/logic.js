@@ -1,5 +1,5 @@
 // Logic thuần của game: không đụng DOM hay Three.js, để chạy được trong Node khi kiểm thử.
-import { ING, COMP, DRINKS, UPG, EVENTS, CFG, FIRST, REVIEW } from './data.js';
+import { ING, COMP, DRINKS, UPG, EVENTS, CFG, FIRST, REVIEW, ROOKIE } from './data.js';
 
 export const rnd = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 export function wpick(arr, w, rng = Math.random) {
@@ -9,14 +9,14 @@ export function wpick(arr, w, rng = Math.random) {
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export const newRec = day => ({ day, sales: 0, tips: 0, served: 0, lost: 0, stars: [], buy: 0, upgrades: 0, spoil: { n: 0, v: 0 }, rent: 0, util: 0, waste: [] });
+export const newRec = day => ({ day, sales: 0, tips: 0, served: 0, lost: 0, stars: [], buy: 0, upgrades: 0, spoil: { n: 0, v: 0 }, rent: 0, util: 0, waste: [], bonus: 0 });
 
 export function freshState(rng = Math.random) {
   const sell = { L: CFG.sizeL };
   Object.keys(DRINKS).forEach(k => { sell[k] = DRINKS[k].price; });
   const stock = {};
   Object.keys(ING).forEach(k => { stock[k] = []; });
-  const S = { v: 1, day: 1, money: CFG.startMoney, stock, unlocked: { den: true, sua: true }, sell, upg: {}, reviews: [], history: [], best: 0, cur: newRec(1), ev: null, evDay: 0, seenLv: 1 };
+  const S = { v: 1, day: 1, money: CFG.startMoney, stock, unlocked: { den: true, sua: true }, sell, upg: {}, reviews: [], history: [], best: 0, cur: newRec(1), ev: null, evDay: 0, seenLv: 1, ftue: newFtue() };
   rollDay(S, rng);
   return S;
 }
@@ -220,7 +220,7 @@ export function addReview(S, s, why, name, rng = Math.random) {
 }
 
 /* ---------- cuối ngày ---------- */
-export const recRevenue = r => r.sales + r.tips;
+export const recRevenue = r => r.sales + r.tips + (r.bonus || 0);
 export const recCost = r => r.buy + r.upgrades + r.rent + r.util;
 export function endDay(S, rng = Math.random) {
   const r = S.cur;
@@ -239,4 +239,48 @@ export function endDay(S, rng = Math.random) {
     rollDay(S, rng);
   }
   return { rec: r, revenue, cost, profit, broke };
+}
+
+/* ---------- hướng dẫn lần đầu + nhiệm vụ tân binh ---------- */
+// coached: đã xong (hoặc bỏ qua) phần chỉ dẫn pha ly đầu tiên. menuTut: null → 'go' → 'done'.
+export const newFtue = () => ({ welcomed: false, coached: false, skip: false, done: {}, claimed: {}, menuTut: null });
+const DEFAULT_DRINKS = ['den', 'sua'];
+export const unlockedExtra = S => Object.keys(DRINKS).some(k => S.unlocked[k] && !DEFAULT_DRINKS.includes(k));
+// Bản lưu có từ trước khi có hướng dẫn: người đã chơi thì không bắt học lại và không hiện nhiệm vụ tân binh.
+export function migrateFtue(S) {
+  if (!S.ftue) {
+    S.ftue = newFtue();
+    if (S.day > 1 || S.history.length || S.tutSeen) {
+      Object.assign(S.ftue, { welcomed: true, coached: true, menuTut: 'done' });
+      ROOKIE.forEach(t => { S.ftue.done[t.id] = true; S.ftue.claimed[t.id] = true; });
+    }
+  }
+  S.ftue.done = S.ftue.done || {};
+  S.ftue.claimed = S.ftue.claimed || {};
+  if (unlockedExtra(S)) S.ftue.menuTut = 'done';
+  return S;
+}
+// Trả về true nếu vừa hoàn thành lần đầu (để báo cho người chơi đúng một lần).
+export function rookieDone(S, id) {
+  if (!ROOKIE.some(t => t.id === id) || S.ftue.done[id]) return false;
+  S.ftue.done[id] = true;
+  return true;
+}
+export function rookieClaim(S, id) {
+  const t = ROOKIE.find(x => x.id === id);
+  if (!t || !S.ftue.done[id] || S.ftue.claimed[id]) return 0;
+  S.ftue.claimed[id] = true;
+  S.money += t.reward;
+  S.cur.bonus = (S.cur.bonus || 0) + t.reward;
+  return t.reward;
+}
+export const rookieActive = S => S.ftue.welcomed && ROOKIE.some(t => !S.ftue.claimed[t.id]);
+export const rookieState = S => ROOKIE.map(t => ({ ...t, done: !!S.ftue.done[t.id], claimed: !!S.ftue.claimed[t.id] }));
+// Hướng dẫn theo ngữ cảnh: lần đầu đủ tiền mở món mới thì chỉ chỗ mở.
+export function checkMenuTut(S) {
+  if (S.ftue.menuTut != null || S.ftue.skip || !S.ftue.coached || unlockedExtra(S)) return false;
+  const cheapest = Math.min(...Object.keys(DRINKS).filter(k => !S.unlocked[k]).map(k => DRINKS[k].unlock));
+  if (S.money < cheapest) return false;
+  S.ftue.menuTut = 'go';
+  return true;
 }

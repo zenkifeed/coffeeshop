@@ -38,6 +38,15 @@ export const UPG = [
   { id: 'slot4',   n: 'Mở rộng quầy',       d: 'Phục vụ cùng lúc 4 khách',                cost: 800000 },
 ];
 
+// Nhiệm vụ tân binh: chỉ cho người mới, nhận hết thì danh sách tự ẩn.
+export const ROOKIE = [
+  { id: 'sale',     n: 'Bán ly cà phê đầu tiên',       reward: 30000 },
+  { id: 'perfect',  n: 'Chiết một shot Hoàn hảo',       reward: 40000 },
+  { id: 'fivestar', n: 'Được một khách chấm 5 sao',     reward: 40000 },
+  { id: 'rename',   n: 'Đặt tên cho quán',              reward: 20000 },
+  { id: 'unlock',   n: 'Mở thêm một món mới',           reward: 80000 },
+];
+
 export const EVENTS = {
   weekend: { n: 'Cuối tuần',        d: 'Khách đông hơn 25%',                     mul: 1.25 },
   holiday: { n: 'Ngày lễ',          d: 'Khách đông gấp rưỡi, tip gấp đôi',        mul: 1.5, tip: 2 },
