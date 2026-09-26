@@ -83,6 +83,17 @@ export const sfx = {
   lvl: i => { const f = jit(note(i), 0.01); tone(f, 0.12, { type: 'triangle', vol: 0.16, slide: 1.12 }); tone(f * 2, 0.05, { type: 'sine', vol: 0.05 }); },
   // tiền khách trả: nhỏ và khẽ vì vang lên liên tục, lệch cao độ để không nhàm
   cash: () => { const k = 1 + (Math.random() - 0.5) * 0.12; tone(1319 * k, 0.06, { type: 'square', vol: 0.025 }); tone(1760 * k, 0.1, { type: 'square', vol: 0.02, delay: 0.045 }); },
+  // Tiếng máy lúc bắt đầu pha, mỗi loại máy một kiểu, rất nhỏ vì vang lên liên tục.
+  // Tiếng nhiễu dùng lọc thông thấp (không dùng thông dải) để không ra tiếng xì chói tai.
+  brew: kind => {
+    if (kind === 'espresso') { noise(0.45, { freq: 520, q: 0.7, vol: 0.06, type: 'lowpass', slide: 1.8 }); tone(jit(110), 0.4, { type: 'triangle', vol: 0.03 }); }
+    else if (kind === 'icebin') [0, 0.06, 0.13].forEach(d => tone(jit(2300, 0.15), 0.05, { vol: 0.035, delay: d }));
+    else if (kind === 'pitcher' || kind === 'kettle') noise(0.5, { freq: 1600, q: 0.5, vol: 0.035, type: 'lowpass', slide: 0.7 });
+    else if (kind === 'cream') [0, 0.08, 0.16, 0.24].forEach(d => tone(jit(900, 0.1), 0.03, { type: 'triangle', vol: 0.035, delay: d }));
+    else [0, 0.09, 0.18].forEach((d, i) => tone(jit(300 + i * 70, 0.05), 0.08, { vol: 0.05, slide: 1.5, delay: d }));   // róc rách rót
+  },
+  // "ting" khi xong một ly: mỗi trạm một nốt ngũ cung, nhiều trạm xong liền nhau thành giai điệu nhỏ
+  ding: i => { const f = [1568, 1760, 2093, 2349, 2637][i % 5]; tone(jit(f, 0.01), 0.25, { type: 'triangle', vol: 0.045 }); tone(f * 2, 0.12, { vol: 0.012, delay: 0.02 }); },
   // tiếng "bíp" dễ thương khi chạm vào gấu: hai nốt trượt lên
   boop: () => { tone(jit(620, 0.06), 0.09, { type: 'sine', vol: 0.18, slide: 1.6 }); tone(jit(990, 0.06), 0.1, { type: 'sine', vol: 0.12, slide: 1.4, delay: 0.08 }); },
   meh: () => tone(jit(392), 0.2, { type: 'triangle', vol: 0.14, slide: 0.85 }),

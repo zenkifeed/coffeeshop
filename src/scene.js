@@ -48,6 +48,20 @@ const PROP = {
   cream: [P.buildCreamBowl, 1.5, true],
 };
 
+// Hiệu ứng lúc pha cho từng loại máy (toạ độ trong khung của mô hình, trước khi phóng to):
+// machine: máy rung, rót từ vòi; pour: nhấc lên, dời sang ly, nghiêng rót; swirl: lắc xoáy; ice: xúc đá; whisk: đánh kem.
+// lip: điểm dòng nước chảy ra; stream: màu dòng (bỏ trống thì lấy màu món); puff: loại hạt bay ra định kỳ.
+const BREWFX = {
+  espresso: { mode: 'machine', lip: [0, 0.44, 0.34], stream: 0x3b2314, puff: 'steam', puffAt: [0.3, 0.9, -0.05] },
+  can: { mode: 'pour', lift: 0.2, dx: 0.26, tilt: 1.0, lip: [0.11, 0.21, 0], stream: 0xf3e2b8 },
+  carton: { mode: 'pour', lift: 0.16, dx: 0.3, tilt: 1.05, lip: [0.06, 0.36, 0.04], stream: 0xfbf7ee },
+  kettle: { mode: 'pour', lift: 0.12, dx: 0.02, tilt: 0.55, lip: [0.34, 0.28, 0], puff: 'steam', puffAt: [0.34, 0.3, 0] },
+  syrup: { mode: 'pour', lift: 0.22, dx: 0.3, tilt: 1.3, lip: [0.09, 0.39, 0] },
+  pitcher: { mode: 'swirl', puff: 'steam', puffAt: [0, 0.3, 0] },
+  icebin: { mode: 'ice' },
+  cream: { mode: 'whisk', puff: 'bubble', puffAt: [0, 0.25, 0] },
+};
+
 export function createScene(canvas, handlers) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -138,9 +152,10 @@ export function createScene(canvas, handlers) {
   const stGroup = new THREE.Group();
   scene.add(stGroup);
   const tkMats = new Map();
+  const streamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
   const drinkMat = c => { if (!tkMats.has(c)) tkMats.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: 0.3 })); return tkMats.get(c); };
   function clearStations() {
-    stations.forEach(s => { stGroup.remove(s.group); const i = pickables.indexOf(s.group); if (i >= 0) pickables.splice(i, 1); });
+    stations.forEach(s => { stGroup.remove(s.group); stGroup.remove(s.stream); const i = pickables.indexOf(s.group); if (i >= 0) pickables.splice(i, 1); });
     stations.clear();
   }
   // defs: danh sách trạm của quán; mỗi trạm dựng sẵn cả mô hình lẫn thùng hàng, bật tắt theo trạng thái khoá.
@@ -160,12 +175,17 @@ export function createScene(canvas, handlers) {
       prop.add(inner);
       if (d.prop === 'espresso') inner.position.z = -0.12;
       else inner.position.x = -0.2;
-      if (withCup) {
-        const cup = P.buildTakeaway(drinkMat(new THREE.Color(d.c).getHex()));
-        cup.scale.setScalar(1.35);
-        cup.position.set(0.32, 0.03, 0.12);
-        prop.add(cup);
-      }
+      // ly trước máy: đầy dần khi đang pha, nảy lên khi pha xong
+      const color = new THREE.Color(d.c).getHex();
+      const cup = P.buildTakeaway(drinkMat(color));
+      const cupScale = withCup ? 1.35 : 0.75;
+      cup.scale.setScalar(cupScale);
+      if (withCup) cup.position.set(0.32, 0, 0.12); else cup.position.set(0, 0, 0.098);
+      prop.add(cup);
+      const stream = new THREE.Mesh(streamGeo, new THREE.MeshStandardMaterial({ color: BREWFX[d.prop].stream ?? color, roughness: 0.3, emissive: BREWFX[d.prop].stream ?? color, emissiveIntensity: 0.15 }));
+      stream.visible = false;
+      stream.castShadow = false;
+      stGroup.add(stream);
       prop.position.y = 0.03;
       g.add(prop);
       const crate = buildCrate(d.c);
@@ -175,7 +195,7 @@ export function createScene(canvas, handlers) {
       g.add(hb);
       stGroup.add(g);
       pickables.push(g);
-      stations.set(d.id, { group: g, prop, crate, locked: null, sp: spring(), base: g.position.clone(), idx: i, steamT: Math.random() });
+      stations.set(d.id, { group: g, prop, crate, locked: null, sp: spring(), base: g.position.clone(), idx: i, inner, rest: inner.position.clone(), sc, fx: BREWFX[d.prop] || BREWFX.can, color, cup, cupScale, fill: cup.children[0], cupSp: spring(), tray, stream, prog: -1, brew: -1, bt: 0, k: 0, spin: 0, puffT: 0, glow: 0 });
     });
   }
   function setStationLocked(id, locked) {
@@ -208,6 +228,84 @@ export function createScene(canvas, handlers) {
     if (big) { burst('star', p, 7); burst('confetti', p, 18); punch(0.3); }
   }
 
+  /* ---------- máy chạy khi pha: lấy đà, làm việc, xong thì nảy và lấp lánh ---------- */
+  const tA = new THREE.Vector3(), tB = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  function brewStart(s) {
+    s.bt = 0;
+    s.puffT = 0.1;
+    s.sp.v = -0.12 * motionScale;             // lấy đà: nén xuống rồi bật lên
+    s.sp.vel = 0;
+    s.fill.scale.y = 0.05;
+    burst('spark', s.inner.localToWorld(tA.set(0, 0.3, 0)), 3);
+  }
+  function brewDone(s) {
+    s.sp.v = -0.26 * motionScale;             // máy nảy
+    s.sp.vel = 0;
+    s.cupSp.v = 0.4 * motionScale;            // ly vươn lên rồi nảy về
+    s.cupSp.vel = 0;
+    s.glow = 1;
+    s.fill.scale.y = 1;
+    const top = s.cup.localToWorld(tA.set(0, 0.3, 0));
+    burst('spark', top, 6);
+    burst('star', top, 2);
+  }
+  function animStation(s, dt) {
+    const on = s.brew >= 0 && !s.locked, fx = s.fx, inner = s.inner, ms = motionScale;
+    s.bt += dt;
+    s.k += ((on ? 1 : 0) - s.k) * (1 - Math.exp(-dt * 9));
+    const k = s.k, t = s.bt;
+    inner.position.copy(s.rest);
+    inner.rotation.set(0, 0, 0);
+    inner.scale.setScalar(s.sc);
+    let pour = false;
+    if (fx.mode === 'machine') {
+      if (on) { inner.position.x += rr() * 0.007 * ms; inner.position.z += rr() * 0.004 * ms; pour = true; }
+    } else if (fx.mode === 'pour') {
+      inner.position.x += fx.dx * k;
+      inner.position.y += fx.lift * k + (on ? Math.sin(t * 9) * 0.012 * ms : 0);
+      inner.rotation.z = -fx.tilt * k;
+      pour = on && k > 0.85;
+    } else if (fx.mode === 'swirl') {
+      inner.rotation.y = Math.sin(t * 9) * 0.6 * k * ms;
+      inner.rotation.z = Math.sin(t * 9 + 1.2) * 0.18 * k * ms;
+      inner.position.y += Math.abs(Math.sin(t * 9)) * 0.03 * k;
+    } else if (fx.mode === 'ice') {
+      inner.position.x += Math.sin(t * 34) * 0.012 * k * ms;
+      inner.rotation.z = Math.sin(t * 17) * 0.05 * k * ms;
+    } else if (fx.mode === 'whisk') {
+      s.spin += dt * 9 * k;
+      inner.rotation.y = s.spin;
+      inner.rotation.z = Math.sin(t * 14) * 0.08 * k * ms;
+    }
+    // ly đầy dần theo tiến độ, nảy khi xong
+    if (on) s.fill.scale.y = Math.max(0.05, s.brew);
+    stepSpring(s.cupSp, dt, 380, 12);
+    squash(s.cup, s.cupSp.v, s.cupScale);
+    // khay dưới máy sáng nhấp nháy khi đang pha, loé lên khi xong
+    s.glow = Math.max(on ? 0.28 + 0.14 * Math.sin(t * 8) : 0, s.glow - dt * 2.5);
+    s.tray.material.emissive.setHex(s.color);
+    s.tray.material.emissiveIntensity = s.glow;
+    // dòng nước từ miệng máy hay miệng chai xuống ly, phập phồng nhẹ cho sống động
+    if (pour) {
+      inner.updateMatrixWorld(true);
+      inner.localToWorld(tA.set(...fx.lip));
+      s.cup.localToWorld(tB.set(0, 0.24, 0));
+      const len = tA.distanceTo(tB), r = 0.022 * (1 + Math.sin(t * 40) * 0.25);
+      s.stream.position.copy(tA).add(tB).multiplyScalar(0.5);
+      s.stream.quaternion.setFromUnitVectors(UP, tB.sub(tA).normalize());
+      s.stream.scale.set(r, len, r);
+      s.stream.visible = true;
+    } else s.stream.visible = false;
+    // hạt bay ra định kỳ theo từng loại máy
+    if (on && (s.puffT -= dt) <= 0) {
+      s.puffT = 0.16 + Math.random() * 0.1;
+      if (fx.puff && Math.random() < 0.7) burst(fx.puff, inner.localToWorld(tA.set(...fx.puffAt)), 1);
+      if (pour && Math.random() < 0.6) burst('drop', s.cup.localToWorld(tA.set(0, 0.26, 0)), 1, fx.stream ?? s.color);
+      if (fx.mode === 'ice') burst('ice', inner.localToWorld(tA.set(0, 0.22, 0)), 1);
+      if (fx.mode === 'swirl' && Math.random() < 0.6) burst('bubble', inner.localToWorld(tA.set(0, 0.25, 0)), 1);
+    }
+  }
+
   /* ---------- vòng sáng chỉ trạm (cho bong bóng hướng dẫn) ---------- */
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 40), new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2;
@@ -228,6 +326,8 @@ export function createScene(canvas, handlers) {
     steam: new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }),
     crate: new THREE.MeshStandardMaterial({ color: 0xc9955f, roughness: 0.8 }),
     heart: new THREE.MeshBasicMaterial({ color: 0xff6b8b, side: THREE.DoubleSide }),
+    ice: new THREE.MeshStandardMaterial({ color: 0xe6f7ff, transparent: true, opacity: 0.85, roughness: 0.1 }),
+    bubble: new THREE.MeshStandardMaterial({ color: 0xfffaf0, roughness: 0.5 }),
     confetti: [0xe25b4a, 0xf0b43c, 0x4fa883, 0x5aa9e6, 0xef6f8e, 0x9b6bd1].map(c => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })),
   };
   const parts = Array.from({ length: 260 }, () => {
@@ -245,17 +345,20 @@ export function createScene(canvas, handlers) {
     star: { geo: 'star', mat: 'star', life: 0.9, grav: -3, drag: 1.2, s0: 1.6, v: () => [rr() * 1.4, 2.2 + Math.random(), rr() * 0.6 + 0.8], spin: 8 },
     confetti: { geo: 'paper', mat: 'confetti', life: 1.7, grav: -5, drag: 1.4, s0: 1.3, v: () => [rr() * 2.4, 3 + Math.random() * 2.4, rr() * 2 + 0.5], spin: 14 },
     steam: { geo: 'orb', mat: 'steam', life: 0.95, grav: 0, drag: 0.6, s0: 1.1, grow: true, v: () => [rr() * 0.15, 0.55 + Math.random() * 0.35, rr() * 0.15], spin: 0 },
+    drop: { geo: 'orb', mat: 'drop', life: 0.45, grav: -7, drag: 0.5, s0: 0.45, v: () => [rr() * 0.7, 0.8 + Math.random() * 0.8, rr() * 0.7], spin: 0 },
+    ice: { geo: 'chip', mat: 'ice', life: 0.6, grav: -9, drag: 0.3, s0: 0.9, v: () => [1.1 + Math.random() * 0.5, 2.2 + Math.random() * 0.8, rr() * 0.3], spin: 12 },
+    bubble: { geo: 'orb', mat: 'bubble', life: 0.7, grav: 0.5, drag: 1, s0: 0.5, grow: true, v: () => [rr() * 0.25, 0.5 + Math.random() * 0.4, rr() * 0.25], spin: 0 },
     heart: { geo: 'heart', mat: 'heart', life: 1.1, grav: 0.8, drag: 1.6, s0: 1.4, v: () => [rr() * 0.5, 1.2 + Math.random() * 0.6, 0.3], spin: 0, face: true },
     crate: { geo: 'chip', mat: 'crate', life: 0.9, grav: -9, drag: 0.4, s0: 1.4, v: () => [rr() * 2.2, 2.5 + Math.random() * 2, rr() * 1.6 + 0.4], spin: 16 },
   };
-  function burst(kind, pos, n) {
+  function burst(kind, pos, n, color) {
     const K = KIND[kind];
     n = Math.max(1, Math.round(n * (0.8 + Math.random() * 0.4)));
     for (let i = 0; i < n; i++) {
       const p = parts[pNext];
       pNext = (pNext + 1) % parts.length;
       p.m.geometry = PGEO[K.geo];
-      p.m.material = K.mat === 'confetti' ? PMAT.confetti[(Math.random() * 6) | 0] : PMAT[K.mat];
+      p.m.material = K.mat === 'confetti' ? PMAT.confetti[(Math.random() * 6) | 0] : K.mat === 'drop' ? drinkMat(color ?? 0x8a5a3b) : PMAT[K.mat];
       p.m.position.set(pos.x + rr() * 0.05, pos.y, pos.z + rr() * 0.05);
       if (K.face) p.m.rotation.set(-0.5, 0, rr() * 0.4); else p.m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
       p.vel.set(...K.v());
@@ -343,6 +446,8 @@ export function createScene(canvas, handlers) {
       m.brewing = s.state === 'brew' ? s.job.st : null;
     });
     [...staff.keys()].forEach(id => { if (!seen.has(id)) dropPerson(staff, id); });
+    stations.forEach(st => { st.prog = -1; });
+    for (const b of W.staff) if (b.state === 'brew') { const st = stations.get(b.job.st); if (st) st.prog = Math.max(st.prog, Math.min(1, b.t / b.dur)); }
   }
   function place(m, e, dt) {
     m.g.position.x = e.x;
@@ -478,10 +583,12 @@ export function createScene(canvas, handlers) {
     stations.forEach(s => {
       stepSpring(s.sp, dt);
       squash(s.group, s.sp.v);
-      // trạm đang có người pha thì bốc hơi nhẹ
-      let busy = false;
-      staff.forEach(m => { if (m.brewing && stations.get(m.brewing) === s) busy = true; });
-      if (busy && (s.steamT -= dt) <= 0) { s.steamT = 0.35; burst('steam', s.group.localToWorld(tmp.set(rr() * 0.25, 0.75, 0)), 1); }
+      // bắt đầu / xong một lượt pha; tiến độ tụt mạnh nghĩa là bạn gấu khác vừa nhận lượt mới ngay
+      const p = s.prog;
+      if (p >= 0 && (s.brew < 0 || p < s.brew - 0.3)) { if (s.brew >= 0) brewDone(s); brewStart(s); }
+      else if (p < 0 && s.brew >= 0) brewDone(s);
+      s.brew = p;
+      animStation(s, dt);
     });
     stepSpring(signSp, dt, 260, 9);
     signG.scale.setScalar(1 + signSp.v);

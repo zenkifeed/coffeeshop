@@ -71,6 +71,8 @@ Chạm vào một trạm (hoặc nhãn cấp dưới trạm) để mở bảng t
 - Chọn mua **x1**, **x10**, **Tới mốc** hoặc **Tối đa** (nhiều nhất đủ tiền). **Giữ nút Nâng cấp** để nâng liên tục.
 - Nhãn dưới trạm: cấp hiện tại, số sao, mũi tên xanh khi đủ tiền lên cấp, vạch xanh khi đang có gấu pha.
 
+**Máy chạy khi pha:** mỗi loại máy một kiểu. Máy espresso rung nhẹ, rót dòng cà phê vào ly dưới vòi và xì hơi; lon, hộp sữa, chai siro được nhấc lên nghiêng rót thành dòng vào ly, bắn giọt; ấm nhấc lên rót, bốc hơi; ca sữa lắc xoáy nổi bọt; thùng đá rung, đá viên bật sang ly; bát kem xoay đánh. Ly trước máy đầy dần theo tiến độ pha, khay dưới máy sáng nhấp nháy. Pha xong thì máy nảy, ly nảy lên, bắn sao lấp lánh kèm tiếng "ting" (mỗi trạm một nốt). Mỗi loại máy có tiếng riêng lúc bắt đầu pha, rất nhỏ để nhiều máy cùng chạy không ồn.
+
 Trạm chưa mở là **thùng hàng**. Trạm mở lần lượt từ trái sang phải; trạm sau đắt hơn nhưng mỗi ly bán được nhiều hơn hẳn.
 
 ### Nâng cấp quán

@@ -160,6 +160,9 @@ function bubbles() {
 }
 
 /* ---------- sự kiện từ mô phỏng ---------- */
+// Tiếng máy chạy tự động (người chơi không bấm): mỗi loại tối đa một tiếng trong 0,12 giây để nhiều máy cùng chạy không ồn.
+const sfxAt = {};
+function sfxOk(k) { const n = performance.now(); if (n - (sfxAt[k] || 0) < 120) return false; sfxAt[k] = n; return true; }
 function handle(ev) {
   for (const e of ev) {
     if (e.k === 'serve') {
@@ -168,7 +171,8 @@ function handle(ev) {
       scene.emote({ staff: e.s.id }, 'serve');
       if (e.c) { scene.burstAt({ cust: e.c.id }, 'coin', 3); scene.emote({ cust: e.c.id }, 'love'); scene.burstAt({ cust: e.c.id, head: true }, 'heart', 2); }
       sfx.cash();
-    } else if (e.k === 'brew') scene.press(e.st, 0.1);
+    } else if (e.k === 'brew') { if (sfxOk('brew')) sfx.brew(L.stDef(S, e.st).prop); }
+    else if (e.k === 'ready') { if (sfxOk('ready')) sfx.ding(L.stIndex(S, e.st)); }
     else if (e.k === 'order') {
       // khách vừa tới quầy: một bạn gấu đang rảnh vẫy tay chào
       const idle = W.staff.filter(s => s.state === 'idle');
