@@ -1,9 +1,10 @@
-// Lớp lưu trữ: bản lưu chính, 3 bản dự phòng cuối ngày, cất bản hỏng, phát hiện máy chặn lưu.
+// Lớp lưu trữ: bản lưu chính, 3 bản dự phòng theo thời gian chơi, cất bản hỏng, phát hiện máy chặn lưu.
 // Đọc localStorage qua globalThis để kiểm thử thay được bằng bản giả.
-export const KEYS = { main: 'cafe3d_v1', rescue: 'cafe3d_rescue', baks: ['cafe3d_bak1', 'cafe3d_bak2', 'cafe3d_bak3'] };
+// Bản idle dùng khoá mới (v2); khoá v1 của bản pha tay chỉ đọc để nhận ra người chơi cũ.
+export const KEYS = { main: 'cafe3d_v2', legacy: 'cafe3d_v1', rescue: 'cafe3d_rescue', baks: ['cafe3d_v2_bak1', 'cafe3d_v2_bak2', 'cafe3d_v2_bak3'] };
 const store = () => globalThis.localStorage;
 
-export const validSave = d => !!d && d.v === 1 && typeof d.stock === 'object' && d.stock !== null && Number.isFinite(d.day) && Number.isFinite(d.money);
+export const validSave = d => !!d && d.v === 2 && typeof d.st === 'object' && d.st !== null && Number.isFinite(d.shop) && Number.isFinite(d.money);
 
 // Thử ghi rồi đọc lại: tab ẩn danh cũ, Safari chặn cookie hay bộ nhớ đầy đều hỏng ở bước này.
 export function storageOk() {
@@ -17,21 +18,24 @@ export function storageOk() {
 }
 
 // status: 'ok' | 'none' | 'corrupt'. Bản hỏng được cất sang khoá riêng để lần lưu sau không ghi đè mất.
+// legacy: có bản lưu của bản pha tay (v1), để chào người chơi cũ.
 export function readSave() {
-  let raw = null;
-  try { raw = store().getItem(KEYS.main); } catch (e) { return { status: 'none', data: null }; }
-  if (!raw) return { status: 'none', data: null };
+  let raw = null, legacy = null;
+  try { raw = store().getItem(KEYS.main); legacy = store().getItem(KEYS.legacy); } catch (e) { return { status: 'none', data: null, legacy: null }; }
+  let old = null;
+  try { const d = legacy && JSON.parse(legacy); if (d && d.v === 1) old = { shopName: d.shopName || '', day: d.day || 1 }; } catch (e) { /* bản cũ hỏng thì thôi */ }
+  if (!raw) return { status: 'none', data: null, legacy: old };
   try {
     const d = JSON.parse(raw);
-    if (validSave(d)) return { status: 'ok', data: d };
+    if (validSave(d)) return { status: 'ok', data: d, legacy: null };
   } catch (e) { /* JSON hỏng: xử lý như bản không hợp lệ */ }
   try { store().setItem(KEYS.rescue, raw); } catch (e) { /* không cất được thì thôi */ }
-  return { status: 'corrupt', data: null };
+  return { status: 'corrupt', data: null, legacy: null };
 }
 
-function dropSpare() { [KEYS.rescue, ...KEYS.baks.slice().reverse()].forEach(k => { try { store().removeItem(k); } catch (e) { /* bỏ qua */ } }); }
+function dropSpare() { [KEYS.rescue, KEYS.legacy, ...KEYS.baks.slice().reverse()].forEach(k => { try { store().removeItem(k); } catch (e) { /* bỏ qua */ } }); }
 
-// Bộ nhớ đầy thì bỏ bản cứu và bản dự phòng để ưu tiên giữ bản chính.
+// Bộ nhớ đầy thì bỏ bản cứu, bản cũ và bản dự phòng để ưu tiên giữ bản chính.
 export function writeSave(S) {
   let js;
   try { js = JSON.stringify(S); } catch (e) { return false; }
@@ -40,7 +44,7 @@ export function writeSave(S) {
   try { store().setItem(KEYS.main, js); return true; } catch (e) { return false; }
 }
 
-// Gọi mỗi cuối ngày: bak3 ← bak2 ← bak1 ← bản hiện tại.
+// Gọi mỗi 5 phút chơi và mỗi lần chuyển quán: bak3 ← bak2 ← bak1 ← bản hiện tại.
 export function rotateBackups(S) {
   try {
     const s = store(), [b1, b2, b3] = KEYS.baks, js = JSON.stringify(S);
@@ -56,13 +60,12 @@ export function rotateBackups(S) {
   } catch (e) { /* máy chặn lưu: đã có cảnh báo riêng */ }
 }
 
-const LABELS = ['Cuối ngày gần nhất', 'Một ngày trước đó', 'Hai ngày trước đó'];
 export function listBackups() {
   const out = [];
-  KEYS.baks.forEach((k, i) => {
+  KEYS.baks.forEach(k => {
     try {
       const d = JSON.parse(store().getItem(k));
-      if (validSave(d)) out.push({ key: k, label: LABELS[i], data: d });
+      if (validSave(d)) out.push({ key: k, data: d });
     } catch (e) { /* bản hỏng thì không liệt kê */ }
   });
   return out;

@@ -1,159 +1,168 @@
-// Kiểm thử logic thuần: công thức, gợi ý từng bước, kho, đơn hàng, chấm sao, và mô phỏng kinh tế 30 ngày.
-import { ING, COMP, DRINKS, CFG } from '../src/data.js';
+// Kiểm thử logic thuần: số liệu, tiền và cấp trạm, mô phỏng khách và nhân viên, ước lượng thu nhập,
+// nhiệm vụ và chuyển quán, hướng dẫn, lưu trữ, và mô phỏng cân bằng ba quán trên engine thật.
+import { CFG, LAYOUT, SHOPS } from '../src/data.js';
 import * as L from '../src/logic.js';
+import { playAll, seeded } from './balance.mjs';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.log('  ✗ ' + msg); } };
-const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-const stockAll = (S, q = 200) => Object.keys(ING).forEach(k => L.addStock(S, k, q));
-const unlockAll = S => Object.keys(DRINKS).forEach(k => { S.unlocked[k] = true; });
+const PROPS = ['espresso', 'can', 'carton', 'pitcher', 'kettle', 'icebin', 'syrup', 'cream'];
+const FX = ['staff', 'walk', 'prep', 'spawn', 'queue', 'profit'];
 
-console.log('Công thức');
-const keys = Object.keys(DRINKS);
-keys.forEach(k => ok(L.identifyDrink({ comps: [...DRINKS[k].comps].reverse() }) === k, `nhận diện ${k} không phụ thuộc thứ tự`));
-ok(new Set(keys.map(k => [...DRINKS[k].comps].sort().join('+'))).size === keys.length, 'không có hai món trùng công thức');
-keys.forEach(k => DRINKS[k].comps.forEach(c => ok(COMP[c], `${k}: thành phần ${c} tồn tại`)));
+console.log('Số liệu');
+SHOPS.forEach(sh => {
+  const ids = sh.stations.map(s => s.id), up = sh.upgrades.map(u => u.id);
+  ok(sh.stations.length <= LAYOUT.stationX.length, `${sh.id}: số trạm vừa quầy`);
+  ok(new Set(ids).size === ids.length && new Set(up).size === up.length, `${sh.id}: mã trạm và mã nâng cấp không trùng`);
+  ok(sh.stations[0].unlock === 0, `${sh.id}: trạm đầu mở sẵn`);
+  sh.stations.forEach((s, i) => {
+    ok(PROPS.includes(s.prop), `${sh.id}/${s.id}: có mô hình ${s.prop}`);
+    ok(/^#[0-9a-f]{6}$/i.test(s.c) && s.time > 0 && s.price > 0 && s.cost > 0, `${sh.id}/${s.id}: đủ màu, giá, thời gian`);
+    if (i) ok(s.price > sh.stations[i - 1].price && s.unlock > sh.stations[i - 1].unlock, `${sh.id}/${s.id}: trạm sau đắt hơn và lãi hơn trạm trước`);
+  });
+  sh.upgrades.forEach(u => ok(FX.includes(u.fx) && u.cost > 0 && (u.fx !== 'profit' || u.st === 'all' || [].concat(u.st).every(x => ids.includes(x))), `${sh.id}/${u.id}: tác dụng hợp lệ`));
+  sh.tasks.forEach((t, i) => ok((t.k !== 'level' && t.k !== 'unlock') || ids.includes(t.st) ? (t.k !== 'upg' || up.includes(t.id)) : false, `${sh.id}: nhiệm vụ ${i + 1} trỏ đúng trạm/nâng cấp`));
+  ok(sh.start >= sh.stations[0].cost, `${sh.id}: tiền đầu quán đủ nâng cấp trạm đầu một lần (cho bước hướng dẫn)`);
+});
+ok(SHOPS.every((s, i) => !i || s.start > SHOPS[i - 1].start), 'quán sau khởi đầu với nhiều tiền hơn quán trước');
 
-console.log('So khớp ly');
-const o = { drink: 'bacxiu', size: 'L', ice: true };
-const good = { size: 'L', ice: true, comps: ['milk', 'shot', 'condensed'] };
-ok(L.cupMatches(good, o), 'ly đúng khớp');
-ok(!L.cupMatches({ ...good, size: 'M' }, o), 'sai size không khớp');
-ok(!L.cupMatches({ ...good, ice: false }, o), 'thiếu đá không khớp');
-ok(!L.cupMatches({ ...good, comps: ['shot', 'condensed'] }, o), 'thiếu sữa không khớp');
-ok(!L.cupMatches({ ...good, comps: [...good.comps, 'water'] }, o), 'dư nước không khớp');
+console.log('Định dạng tiền');
+[[0, '0đ'], [950, '950đ'], [1500, '1,5k'], [20000, '20k'], [999960, '1 tr'], [1.25e6, '1,25 tr'], [3.4e9, '3,4 tỷ'], [1.2e13, '12 nghìn tỷ'], [-2e4, '−20k']]
+  .forEach(([n, s]) => ok(L.fmt(n) === s, `fmt(${n}) = ${s} (ra ${L.fmt(n)})`));
 
-console.log('Làm theo gợi ý luôn ra đúng món');
-for (const k of keys) for (const size of ['M', 'L']) for (const ice of [true, false]) {
-  const ord = { drink: k, size, ice }, cup = L.newCup();
-  let steps = 0, hint;
-  while ((hint = L.nextHint(cup, ord)) !== 'Chạm vào khách để giao ly' && steps++ < 10) {
-    if (hint.startsWith('Chạm chồng ly')) cup.size = size;
-    else if (hint.startsWith('Nhấn giữ')) cup.comps.push('shot');
-    else if (hint === 'Thêm đá') cup.ice = true;
-    else { const c = Object.keys(COMP).find(x => hint === 'Thêm ' + COMP[x].n.toLowerCase()); if (!c) break; cup.comps.push(c); }
-  }
-  ok(L.cupMatches(cup, ord), `gợi ý dẫn tới ${k} ${size} ${ice ? 'đá' : 'nóng'} (dừng ở: ${hint})`);
-}
-ok(L.nextHint({ size: 'M', comps: ['shot', 'water'], ice: false }, { drink: 'den', size: 'M', ice: false }).startsWith('Dư'), 'báo dư thành phần');
-ok(L.nextHint({ size: 'M', comps: ['shot'], ice: true }, { drink: 'den', size: 'M', ice: false }).includes('đổ ly'), 'báo dư đá ở ly nóng');
-
-console.log('Chất lượng shot');
-ok(L.shotQuality(0.5) === 'weak' && L.shotQuality(0.74) === 'ok' && L.shotQuality(0.95) === 'strong', 'ba vùng chất lượng');
-ok(L.shotQuality(0.6, true) === 'ok' && L.shotQuality(0.6, false) === 'weak', 'máy xay nới rộng vùng chuẩn');
-const holdOk = [CFG.shot.lo / CFG.shot.rate, CFG.shot.hi / CFG.shot.rate];
-ok(holdOk[1] - holdOk[0] > 0.45 && holdOk[0] > 1, `cửa sổ thả tay ${holdOk.map(x => x.toFixed(2)).join('–')}s đủ rộng để người chơi kịp`);
-
-console.log('Kho theo mẻ');
+console.log('Cấp trạm');
 {
-  const S = L.freshState(seeded(1));
-  L.addStock(S, 'milk', 10);
-  ok(S.stock.milk[0].exp === 3, 'sữa mua ngày 1 hết hạn cuối ngày 3');
-  S.day = 2; L.addStock(S, 'milk', 5);
-  ok(L.take(S, 'milk') && S.stock.milk[0].q === 9, 'lấy mẻ cũ trước');
-  S.day = 3;
-  const w = L.expireStock(S);
-  ok(w.length === 1 && w[0].q === 9 && L.qty(S, 'milk') === 5, 'đổ đúng mẻ quá hạn');
-  L.addStock(S, 'cup', 3);
-  ok(L.expireStock(S).every(x => x.k !== 'cup'), 'ly không hết hạn');
+  const S = L.freshState();
+  const c1 = L.levelCost(S, 'den', 1), c2 = L.levelCost(S, 'den', 2);
+  ok(c1 === SHOPS[0].stations[0].cost && Math.abs(c2 / c1 - CFG.growth) < 1e-9, 'giá cấp tăng theo hệ số growth');
+  ok(L.bulk(S, 'den', 10).n === 10 && Math.abs(L.bulk(S, 'den', 10).cost - Array.from({ length: 10 }, (_, i) => L.levelCost(S, 'den', 1 + i)).reduce((a, b) => a + b)) < 1e-6, 'mua 10 cấp: cộng đúng giá từng cấp');
+  ok(L.bulk(S, 'den', 'ms').n === 9, 'mua tới mốc: từ cấp 1 lên đúng cấp 10');
+  S.money = 1e12;
+  const p9 = (L.buyLevels(S, 'den', 8), L.profitOf(S, 'den'));
+  const gained = L.buyLevels(S, 'den', 1);
+  ok(L.lvOf(S, 'den') === 10 && gained === 1, 'qua cấp 10 báo đúng một mốc');
+  ok(Math.abs(L.profitOf(S, 'den') / p9 - 10 / 9 * 2) < 1e-9, 'mốc cấp 10 nhân đôi tiền một ly');
+  S.money = 0;
+  ok(L.buyLevels(S, 'den', 1) === -1 && L.lvOf(S, 'den') === 10, 'thiếu tiền thì không mua được');
+  const m = L.bulk(S, 'den', 'max');
+  ok(m.n === 1, 'chế độ tối đa khi thiếu tiền vẫn hiện giá một cấp');
+  S.money = L.levelCost(S, 'den', 10) + L.levelCost(S, 'den', 11) + 1;
+  ok(L.bulk(S, 'den', 'max').n === 2, 'chế độ tối đa mua đúng số cấp đủ tiền');
+  S.st.den = CFG.maxLv; S.money = 1e30;
+  ok(L.bulk(S, 'den', 1).n === 0 && L.buyLevels(S, 'den', 1) === -1, 'cấp tối đa thì dừng');
+  ok(L.capAt(24) === 1 && L.capAt(25) === 2 && L.capAt(75) === 3, 'cấp 25 và 75 thêm chỗ pha');
 }
 
-console.log('Đơn hàng');
+console.log('Mở trạm và nâng cấp');
 {
-  const rng = seeded(7), S = L.freshState(rng);
-  stockAll(S);
-  let bad = 0;
-  for (let i = 0; i < 3000; i++) { const x = L.genOrder(S, rng); if (x.leave || !S.unlocked[x.drink]) bad++; }
-  ok(bad === 0, 'ngày 1 chỉ gọi món đã mở, không ai bỏ về khi đủ hàng');
-  const S2 = L.freshState(rng);
-  let so = 0;
-  for (let i = 0; i < 500; i++) if (L.genOrder(S2, rng).leave === 'soldout') so++;
-  ok(so === 500, 'kho trống thì mọi khách về vì hết hàng');
-  const S3 = L.freshState(rng); stockAll(S3);
-  Object.keys(DRINKS).forEach(k => { S3.sell[k] = DRINKS[k].price * 2; });
-  let pr = 0;
-  for (let i = 0; i < 2000; i++) if (L.genOrder(S3, rng).leave === 'pricey') pr++;
-  ok(pr > 1400 && pr < 1800, `giá gấp đôi: khoảng 80% khách bỏ đi (đo được ${(pr / 20).toFixed(0)}%)`);
-  const S4 = L.freshState(rng); stockAll(S4); S4.day = 1;
-  let iced = 0;
-  for (let i = 0; i < 1000; i++) if (L.genOrder(S4, rng).ice) iced++;
-  ok(iced === 1000, 'cấp 1 không hỏi nóng hay đá, món mặc định là đá');
-  S4.day = CFG.levels.l2; unlockAll(S4);
-  let hot = 0;
-  for (let i = 0; i < 2000; i++) if (!L.genOrder(S4, rng).ice) hot++;
-  ok(hot > 400 && hot < 1400, 'cấp 2 có cả nóng lẫn đá');
+  const S = L.freshState();
+  S.money = 1e15;
+  ok(!L.unlock(S, 'bacxiu'), 'không mở vượt thứ tự');
+  ok(L.unlock(S, 'sua') && L.lvOf(S, 'sua') === 1, 'mở trạm kế tiếp');
+  const m0 = S.money;
+  ok(!L.unlock(S, 'sua') && S.money === m0, 'không mở lại trạm đã mở');
+  const d0 = L.derived(S);
+  ok(L.buyUpgrade(S, 'staff2') && L.derived(S).staff === d0.staff + 1, 'thuê thêm người');
+  ok(!L.buyUpgrade(S, 'staff2'), 'không mua một nâng cấp hai lần');
+  L.buyUpgrade(S, 'milk');
+  ok(L.derived(S).profit.sua === 2 && L.derived(S).profit.bacxiu === 2 && L.derived(S).profit.den === 1, 'nâng cấp món chỉ nhân đúng các trạm ghi trong số liệu');
+  L.buyUpgrade(S, 'queue4'); L.buyUpgrade(S, 'queue5');
+  ok(L.derived(S).queue === 5 && LAYOUT.slotsX[5], 'tối đa 5 chỗ chờ, có đủ vị trí đứng');
 }
 
-console.log('Chấm sao');
+console.log('Mô phỏng khách và nhân viên');
 {
-  const rng = seeded(3), S = L.freshState(rng);
-  let five = 0, out = 0;
-  for (let i = 0; i < 4000; i++) {
-    const c = { cups: [{ drink: 'sua', size: 'M', ice: true }], pat: 45, max: 50, wrong: 0, shotPen: 0 };
-    const r = L.stars(S, c, rng);
-    if (r.s === 5) five++;
-    if (r.s < 1 || r.s > 5) out++;
-  }
-  ok(out === 0, 'sao luôn trong 1–5');
-  ok(five / 4000 > 0.85, `pha đúng và nhanh gần như chắc 5 sao (${(five / 40).toFixed(0)}%)`);
-  const slow = L.stars(S, { cups: [{ drink: 'sua', size: 'M', ice: true }], pat: 2, max: 50, wrong: 1, shotPen: 1 }, () => 0.5);
-  ok(slow.s === 1, 'chờ lâu + sai món + shot lỗi = 1 sao');
-  const t = [1, 2, 3, 4, 5].map(r => { S.reviews = Array(30).fill({ s: r }); return L.traffic(S); });
-  ok(t.every((v, i) => i === 0 || v > t[i - 1]), 'sao cao hơn thì khách đông hơn');
-  S.reviews = [];
-  const base = L.traffic(S);
-  Object.keys(DRINKS).forEach(k => { S.sell[k] = Math.round(DRINKS[k].price * 0.7); });
-  ok(L.traffic(S) > base, 'giá rẻ kéo thêm khách');
-}
-
-console.log('Mô phỏng kinh tế 30 ngày');
-function simulate(skill, seed) {
-  const rng = seeded(seed), S = L.freshState(rng);
-  const log = [];
-  for (let d = 0; d < 30; d++) {
-    const want = { cup: 30, beans: 30, ice: 20 };
-    L.ingInUse(S).forEach(k => {
-      const need = (want[k] || 15) - L.qty(S, k);
-      if (need <= 0) return;
-      const q = Math.ceil(need / ING[k].pack) * ING[k].pack, cost = q * L.ingCost(S, k);
-      if (cost <= S.money) { L.addStock(S, k, q); S.money -= cost; S.cur.buy += cost; }
+  const S = L.freshState(), rng = seeded(4);
+  S.money = 1e15;
+  SHOPS[0].stations.forEach(s => { if (!L.lvOf(S, s.id)) L.unlock(S, s.id); L.buyLevels(S, s.id, 30); });
+  ['staff2', 'staff3', 'queue4'].forEach(id => L.buyUpgrade(S, id));
+  const W = L.newWorld(S);
+  let served = 0, paid = 0, overCap = 0, money = S.money, dropped = 0;
+  const spawned = new Set(), gone = new Set();
+  for (let t = 0; t < 600; t += 0.1) {
+    const ev = L.step(S, W, 0.1, rng);
+    ev.forEach(e => {
+      if (e.k === 'spawn') spawned.add(e.c.id);
+      if (e.k === 'gone') gone.add(e.c.id);
+      if (e.k === 'serve') { served++; paid += e.amt; }
     });
-    const next = Object.keys(DRINKS).find(k => !S.unlocked[k]);
-    if (next && S.money > DRINKS[next].unlock + 400000) { S.money -= DRINKS[next].unlock; S.cur.upgrades += DRINKS[next].unlock; S.unlocked[next] = true; }
-    const T = CFG.dayMinutes * 60;
-    for (let t = 0; t < T;) {
-      t += L.spawnGap(S, t / T, rng);
-      const n = L.cupCount(S, rng), cups = [];
-      let leave = false;
-      for (let i = 0; i < n; i++) { const x = L.genOrder(S, rng); if (x.leave) { leave = true; break; } cups.push(x); }
-      if (leave) { S.cur.lost++; continue; }
-      const max = L.patienceFor(S, cups);
-      if (rng() > skill) { S.cur.lost++; L.addReview(S, 1, 'timeout', 'x', rng); continue; }
-      const c = { cups, done: cups.map(() => true), pat: max * (0.35 + rng() * 0.6), max, wrong: rng() < 0.05 ? 1 : 0, shotPen: rng() < 0.15 ? 1 : 0 };
-      for (const o of cups) {
-        L.take(S, 'cup'); if (o.ice) L.take(S, 'ice');
-        DRINKS[o.drink].comps.forEach(k => { if (COMP[k].ing) L.take(S, COMP[k].ing); });
-        const p = L.priceOf(S, o); S.money += p; S.cur.sales += p; S.cur.served++;
-      }
-      const st = L.stars(S, c, rng), tip = L.tipFor(S, c);
-      S.money += tip; S.cur.tips += tip;
-      L.addReview(S, st.s, st.why, 'x', rng);
-    }
-    const r = L.endDay(S, rng);
-    log.push({ day: r.rec.day, served: r.rec.served, profit: r.profit, money: S.money, broke: r.broke });
-    if (r.broke) break;
+    if (S.money < money) dropped++;
+    money = S.money;
+    Object.entries(W.spots).forEach(([st, a]) => { if (a.slice(L.capAt(L.lvOf(S, st))).some(Boolean)) overCap++; });
   }
-  return log;
+  ok(served > 100, `10 phút phục vụ đủ đông (${served} ly)`);
+  ok(dropped === 0, 'tiền chỉ tăng trong lúc bán');
+  ok(overCap === 0, 'không trạm nào có quá số người pha cho phép');
+  ok(W.staff.length === L.derived(S).staff, 'số nhân viên đúng với nâng cấp');
+  const stuck = [...spawned].filter(id => !gone.has(id) && !W.cust.some(c => c.id === id));
+  ok(stuck.length === 0, 'khách nào cũng hoặc đã về hoặc còn trong quán');
+  ok(W.cust.filter(c => c.state !== 'out').length <= L.derived(S).queue, 'không quá số chỗ chờ');
+  ok(S.served >= served && S.earned >= paid, 'số ly và tiền kiếm được ghi vào quán');
 }
+
+console.log('Ước lượng thu nhập so với mô phỏng');
 {
-  const good = simulate(0.9, 11), bad = simulate(0.25, 11);
-  const d1 = good[0], last = good[good.length - 1];
-  console.log(`  người chơi giỏi: ngày 1 bán ${d1.served} ly, lãi ${(d1.profit / 1000).toFixed(0)}k · ngày ${last.day} két ${(last.money / 1e6).toFixed(2)} triệu`);
-  console.log(`  người chơi kém: ${bad.length} ngày, két cuối ${(bad[bad.length - 1].money / 1000).toFixed(0)}k${bad[bad.length - 1].broke ? ' (phá sản)' : ''}`);
-  ok(d1.served >= 12 && d1.served <= 40, 'ngày 1 có 12–40 ly, đủ bận mà không ngợp');
-  ok(good.every(x => !x.broke), 'người chơi giỏi không phá sản trong 30 ngày');
-  ok(last.money > 3e6 && last.money < 40e6, 'người chơi giỏi sau 30 ngày có 3–40 triệu, đủ mua hết nâng cấp nhưng không lạm phát');
-  ok(bad[bad.length - 1].money < last.money / 3, 'chơi kém thì nghèo hơn hẳn');
+  const measure = S => {
+    const W = L.newWorld(S), rng = seeded(3);
+    for (let t = 0; t < 60; t += 0.1) L.step(S, W, 0.1, rng);
+    const e0 = S.earned;
+    for (let t = 0; t < 600; t += 0.1) L.step(S, W, 0.1, rng);
+    return (S.earned - e0) / 600;
+  };
+  const cfgs = [
+    ['một trạm cấp 1', S => {}],
+    ['hai trạm, hai người', S => { S.st.den = 20; S.st.sua = 10; S.upg.staff2 = true; }],
+    ['ba trạm, ba người, biển hiệu', S => { S.st.den = 30; S.st.sua = 20; S.st.bacxiu = 10; S.upg.staff2 = S.upg.staff3 = S.upg.sign = true; }],
+    ['đủ trạm, bốn người', S => { SHOPS[0].stations.forEach(s => { S.st[s.id] = 30; }); SHOPS[0].upgrades.forEach(u => { S.upg[u.id] = true; }); }],
+  ];
+  cfgs.forEach(([n, f]) => {
+    const S = L.freshState(); f(S);
+    const real = measure(S), r = L.rate(S) / real;
+    ok(r > 0.7 && r < 1.4, `${n}: ước lượng/thật = ${r.toFixed(2)} (trong 0,7–1,4)`);
+  });
+  ok(L.offlineSecs(-5) === 0 && L.offlineSecs(99999) === CFG.offlineCapH * 3600, 'tiền vắng mặt tính tối đa ' + CFG.offlineCapH + ' giờ');
+}
+
+console.log('Nhiệm vụ và chuyển quán');
+{
+  const S = L.freshState();
+  const t0 = L.tasks(S)[0];
+  ok(!t0.done && L.claimTask(S, 0) === 0, 'chưa xong thì không nhận thưởng');
+  S.money = 1e15;
+  L.buyLevels(S, t0.st, t0.v - 1);
+  const m0 = S.money, r = L.claimTask(S, 0);
+  ok(r === t0.r && S.money === m0 + r, 'xong thì nhận đúng thưởng');
+  ok(L.claimTask(S, 0) === 0, 'không nhận hai lần');
+  ok(!L.canMove(S) && !L.moveShop(S), 'chưa xong hết nhiệm vụ thì chưa chuyển quán');
+  SHOPS[0].tasks.forEach((t, i) => { S.claimed[i] = true; });
+  S.shopName = 'Mây';
+  ok(L.canMove(S) && L.moveShop(S), 'xong hết thì chuyển quán');
+  ok(S.shop === 1 && S.money === SHOPS[1].start && L.lvOf(S, SHOPS[1].stations[0].id) === 1 && !Object.keys(S.upg).length && !Object.keys(S.claimed).length, 'quán mới: tiền đầu quán, chỉ mở trạm đầu, chưa nâng cấp gì');
+  ok(S.shopName === 'Mây' && S.life.served === 0 && S.life.earned >= 0, 'giữ tên quán và số liệu trọn đời');
+  S.shop = SHOPS.length - 1;
+  SHOPS[S.shop].tasks.forEach((t, i) => { S.claimed[i] = true; });
+  ok(!L.canMove(S), 'quán cuối không chuyển tiếp được');
+}
+
+console.log('Hướng dẫn');
+{
+  const S = L.freshState();
+  ok(!L.checkTuts(S) && S.ftue.first == null, 'chưa qua thẻ chào mừng thì chưa hướng dẫn');
+  S.ftue.welcomed = true;
+  ok(L.checkTuts(S) && S.ftue.first === 'go', 'qua thẻ chào mừng thì bật bước nâng cấp đầu tiên');
+  ok(L.buyLevels(S, 'den', 1) >= 0 && S.ftue.first === 'done', 'mua cấp thật thì xong bước đầu');
+  S.money = 0; L.checkTuts(S);
+  ok(S.ftue.unlock == null, 'chưa đủ tiền mở trạm thì chưa nhắc');
+  S.money = SHOPS[0].stations[1].unlock; L.checkTuts(S);
+  ok(S.ftue.unlock === 'go' && S.ftue.upg == null, 'đủ tiền mở trạm: nhắc mở trạm, chưa nhắc nâng cấp cùng lúc');
+  L.unlock(S, 'sua'); L.checkTuts(S);
+  ok(S.ftue.unlock === 'done', 'mở trạm thật thì xong nhắc');
+  S.money = 1e7; L.checkTuts(S);
+  ok(S.ftue.upg === 'go', 'đủ tiền một nâng cấp thì nhắc');
+  const K = L.freshState();
+  Object.assign(K.ftue, { welcomed: true, skip: true });
+  L.checkTuts(K);
+  ok(['first', 'unlock', 'upg', 'move'].every(k => K.ftue[k] === 'done'), 'bỏ qua hướng dẫn thì tắt hết');
 }
 
 console.log('Lưu trữ');
@@ -173,33 +182,37 @@ console.log('Lưu trữ');
     removeItem(k) { this.m.delete(k); }
   }
   const SV = await import('../src/save.js');
-  const mk = day => { const S = L.freshState(seeded(day)); S.day = day; S.money = day * 1000; return S; };
+  const mk = n => { const S = L.freshState(); S.money = n * 1000; S.served = n; return S; };
 
   globalThis.localStorage = new FakeStorage();
   ok(SV.storageOk(), 'máy cho lưu thì storageOk = true');
   ok(SV.readSave().status === 'none', 'chưa có bản lưu thì status none');
-  const s5 = mk(5); s5.dayT = 77;
-  ok(SV.writeSave(s5), 'ghi bản lưu thành công');
+  ok(SV.writeSave(mk(5)), 'ghi bản lưu thành công');
   const back = SV.readSave();
-  ok(back.status === 'ok' && back.data.day === 5 && back.data.dayT === 77, 'đọc lại đúng ngày và giờ còn lại giữa ngày');
+  ok(back.status === 'ok' && back.data.money === 5000 && back.data.st.den === 1, 'đọc lại đúng tiền và cấp trạm');
 
-  localStorage.setItem(SV.KEYS.main, '{"v":1,"stock":');
+  localStorage.setItem(SV.KEYS.main, '{"v":2,"st":');
   const bad = SV.readSave();
-  ok(bad.status === 'corrupt' && localStorage.getItem(SV.KEYS.rescue) === '{"v":1,"stock":', 'bản hỏng: báo corrupt và cất nguyên văn sang khoá cứu');
-  localStorage.setItem(SV.KEYS.main, JSON.stringify({ v: 1, stock: {}, day: 'x', money: 1 }));
+  ok(bad.status === 'corrupt' && localStorage.getItem(SV.KEYS.rescue) === '{"v":2,"st":', 'bản hỏng: báo corrupt và cất nguyên văn sang khoá cứu');
+  localStorage.setItem(SV.KEYS.main, JSON.stringify({ v: 2, st: {}, shop: 'x', money: 1 }));
   ok(SV.readSave().status === 'corrupt', 'JSON đúng nhưng thiếu trường bắt buộc cũng là bản hỏng');
+
+  globalThis.localStorage = new FakeStorage();
+  localStorage.setItem(SV.KEYS.legacy, JSON.stringify({ v: 1, day: 12, shopName: 'Hạt Nâu', stock: {}, money: 5 }));
+  const lg = SV.readSave();
+  ok(lg.status === 'none' && lg.legacy && lg.legacy.shopName === 'Hạt Nâu' && lg.legacy.day === 12, 'có bản pha tay cũ: nhận ra người chơi cũ và giữ tên quán');
 
   globalThis.localStorage = new FakeStorage();
   [1, 2, 3, 4, 5].forEach(d => SV.rotateBackups(mk(d)));
   const list = SV.listBackups();
-  ok(list.length === 3 && list.map(b => b.data.day).join(',') === '5,4,3', 'giữ đúng 3 cuối ngày gần nhất, mới nhất trước');
+  ok(list.length === 3 && list.map(b => b.data.served).join(',') === '5,4,3', 'giữ đúng 3 bản gần nhất, mới nhất trước');
 
   const big = mk(9);
-  big.reviews = Array.from({ length: 300 }, (_, i) => ({ s: 5, t: 'x'.repeat(60) + i, n: 'A', d: 1 }));
+  big.pad = 'x'.repeat(20000);
   const size = JSON.stringify(big).length + SV.KEYS.main.length;
   globalThis.localStorage = new FakeStorage(size * 2.2);
-  [6, 7, 8].forEach(d => SV.rotateBackups(big));
-  ok(SV.writeSave(big) && SV.readSave().data.day === 9, 'bộ nhớ đầy: bỏ bản dự phòng để vẫn ghi được bản chính');
+  [6, 7, 8].forEach(() => SV.rotateBackups(big));
+  ok(SV.writeSave(big) && SV.readSave().data.served === 9, 'bộ nhớ đầy: bỏ bản dự phòng để vẫn ghi được bản chính');
 
   globalThis.localStorage = new FakeStorage();
   localStorage.blocked = true;
@@ -209,47 +222,20 @@ console.log('Lưu trữ');
   delete globalThis.localStorage;
 }
 
-console.log('Hướng dẫn lần đầu và nhiệm vụ tân binh');
+console.log('Mô phỏng cân bằng ba quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
 {
-  const { ROOKIE } = await import('../src/data.js');
-  const S = L.freshState(seeded(5));
-  ok(S.ftue && !S.ftue.welcomed && !S.ftue.coached, 'quán mới: chưa chào mừng, chưa hướng dẫn');
-  ok(!L.rookieActive(S), 'chưa qua thẻ chào mừng thì chưa hiện nhiệm vụ');
-  S.ftue.welcomed = true;
-  ok(L.rookieActive(S), 'qua thẻ chào mừng thì hiện nhiệm vụ');
-  ok(L.rookieDone(S, 'sale') && !L.rookieDone(S, 'sale'), 'đánh dấu xong chỉ báo đúng một lần');
-  ok(!L.rookieDone(S, 'khong-co'), 'mã nhiệm vụ lạ thì bỏ qua');
-  ok(L.rookieClaim(S, 'perfect') === 0, 'chưa xong thì không nhận được thưởng');
-  const m0 = S.money, v = L.rookieClaim(S, 'sale');
-  ok(v === ROOKIE[0].reward && S.money === m0 + v && S.cur.bonus === v, 'nhận thưởng: cộng két và ghi vào sổ ngày');
-  ok(L.rookieClaim(S, 'sale') === 0 && S.money === m0 + v, 'không nhận thưởng hai lần');
-  ok(L.recRevenue(S.cur) === v, 'thưởng nhiệm vụ tính vào doanh thu ngày');
-  ROOKIE.forEach(t => { L.rookieDone(S, t.id); L.rookieClaim(S, t.id); });
-  ok(!L.rookieActive(S), 'nhận hết thì danh sách tự ẩn');
-
-  const vet = L.freshState(seeded(6));
-  delete vet.ftue; vet.day = 12;
-  L.migrateFtue(vet);
-  ok(vet.ftue.welcomed && vet.ftue.coached && !L.rookieActive(vet), 'bản lưu cũ đã chơi: không bắt học lại, không hiện nhiệm vụ');
-  const fresh = L.freshState(seeded(7));
-  delete fresh.ftue;
-  L.migrateFtue(fresh);
-  ok(!fresh.ftue.welcomed, 'bản lưu cũ chưa chơi ngày nào: vẫn được hướng dẫn');
-
-  const T = L.freshState(seeded(8));
-  T.ftue.welcomed = T.ftue.coached = true;
-  T.money = 100000;
-  ok(!L.checkMenuTut(T) && T.ftue.menuTut == null, 'chưa đủ tiền mở món thì chưa nhắc');
-  T.money = 200000;
-  ok(L.checkMenuTut(T) && T.ftue.menuTut === 'go', 'lần đầu đủ tiền mở món rẻ nhất thì bật nhắc');
-  ok(!L.checkMenuTut(T), 'đang nhắc thì không bật lại');
-  const U = L.freshState(seeded(9));
-  Object.assign(U.ftue, { welcomed: true, coached: true, skip: true });
-  U.money = 900000;
-  ok(!L.checkMenuTut(U), 'người chơi đã bỏ qua hướng dẫn thì không nhắc');
-  const V = L.freshState(seeded(10));
-  V.ftue.welcomed = V.ftue.coached = true; V.money = 900000; V.unlocked.latte = true;
-  ok(!L.checkMenuTut(V), 'đã tự mở món rồi thì không nhắc');
+  const BAND = [[10, 35], [10, 40], [10, 45]];
+  const run = playAll(11);
+  run.forEach((r, i) => {
+    const first = r.marks[0] / 60, min = r.t / 60;
+    console.log(`  ${r.shop}: xong sau ${min.toFixed(1)} phút, thưởng đầu tiên sau ${first.toFixed(1)} phút, két cuối ${L.fmt(r.money)}`);
+    ok(r.ok, `${r.shop}: làm xong hết nhiệm vụ`);
+    ok(min >= BAND[i][0] && min <= BAND[i][1], `${r.shop}: ${min.toFixed(1)} phút nằm trong ${BAND[i][0]}–${BAND[i][1]} phút`);
+    ok(first < 1.5, `${r.shop}: có thưởng đầu tiên trong 1,5 phút`);
+    const gaps = r.marks.map((m, k) => m - (r.marks[k - 1] || 0));
+    ok(Math.max(...gaps) / 60 < 6, `${r.shop}: không phải chờ quá 6 phút giữa hai lần nhận thưởng (dài nhất ${(Math.max(...gaps) / 60).toFixed(1)})`);
+  });
+  ok(run.length === SHOPS.length, 'chơi qua được cả chuỗi quán');
 }
 
 console.log(`\n${passes} đạt, ${fails} trượt`);

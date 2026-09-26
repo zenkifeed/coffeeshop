@@ -84,9 +84,6 @@ const aim = (o, dir) => { o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1
 // Ly cà phê kiểu quán Việt: thành hơi loe, đáy dày, vành bo tròn.
 const G = { rb: 0.118, rt: 0.158, wall: 0.011, base: 0.03 };
 const outerR = (H, y) => G.rb + (G.rt - G.rb) * y / H;
-// Bán kính lòng ly ở độ cao y, để các lớp nước ôm đúng dáng ly.
-export const glassInnerR = (H, y) => outerR(H, Math.max(y, G.base)) - G.wall - 0.003;
-export const GLASS_BASE = G.base;
 export function glassGeo(H) {
   return memo('glass' + H, () => lathe([
     [0, 0], [G.rb - 0.014, 0], [G.rb - 0.003, 0.004], [G.rb, 0.014],
@@ -94,12 +91,6 @@ export function glassGeo(H) {
     [outerR(H, H) - G.wall, H - 0.005], [outerR(H, G.base + 0.01) - G.wall, G.base + 0.01],
     [outerR(H, G.base) - G.wall - 0.012, G.base], [0, G.base],
   ], 36));
-}
-// Lớp nước: khối trụ đơn vị, mỗi khung hình nắn lại đỉnh cho khớp lòng ly (xem shapeLayer bên scene.js).
-export function layerGeo() {
-  const g = new THREE.CylinderGeometry(1, 1, 1, 36, 1);
-  g.userData.base = g.attributes.position.array.slice();
-  return g;
 }
 export const iceGeo = () => memo('ice', () => rboxGeo(0.075, 0.075, 0.075, 0.022));
 
@@ -317,15 +308,6 @@ export function buildCreamBowl(g) {
   cyl(0.008, 0.008, 0.2, st, 0, 0.08, 0, sp, 8);
   const head = add(memo('spoonHead', () => new THREE.SphereGeometry(0.03, 16, 10)), st, 0, -0.03, 0, sp);
   head.scale.set(0.8, 1.2, 0.35);
-}
-
-export function buildTrash(g) {
-  const body = std(0x4a4f55, { roughness: 0.4, metalness: 0.3 }), lid = steel(0xb7bdc2), dk = std(0x2d2a28);
-  add(memo('bin', () => lathe([[0, 0], [0.16, 0], [0.172, 0.01], [0.195, 0.3], [0.2, 0.31], [0, 0.31]], 32)), body, 0, 0, 0, g);
-  add(memo('binLid', () => lathe([[0, 0.308], [0.2, 0.308], [0.212, 0.315], [0.21, 0.328], [0.18, 0.345], [0.1, 0.366], [0, 0.372]], 32)), lid, 0, 0, 0, g);
-  rbox(0.08, 0.02, 0.03, 0.008, lid, 0, 0.332, 0.19, g).rotation.x = 0.2;
-  cyl(0.1745, 0.1765, 0.02, std(0x7fb7a4), 0, 0.05, 0, g, 32, true);
-  rbox(0.12, 0.022, 0.08, 0.008, dk, 0, 0.018, 0.19, g);
 }
 
 export function buildRegister(g) {

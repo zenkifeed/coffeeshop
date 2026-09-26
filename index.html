@@ -14,23 +14,22 @@
 <body>
 <canvas id="c"></canvas>
 <header id="hud">
-  <div class="h-l">
-    <button id="pauseBtn" class="icb" aria-label="Tạm dừng" hidden></button>
-    <button id="setBtn" class="icb ghosty" aria-label="Cài đặt"></button>
-    <div class="day"><span id="hDay">Ngày 1</span><small id="hSub">Chuẩn bị</small></div>
-  </div>
-  <div class="h-m" id="hMoneyBox"><i id="hCoin"></i><span id="hMoney">0k</span></div>
-  <div class="h-r"><span class="hstars"><span id="hStarBg"></span><span id="hStarFill"></span></span><small id="hRate">4,0</small></div>
-  <div id="dayBarBox" hidden><i id="dayBar"></i></div>
+  <button id="setBtn" class="icb ghosty" aria-label="Cài đặt"></button>
+  <div class="h-shop"><b id="hShop">Quán Cà Phê Nhỏ</b><small id="hLoc"></small></div>
+  <div class="h-m" id="hMoneyBox"><i id="hCoin"></i><div><span id="hMoney">0</span><small id="hRate"></small></div></div>
 </header>
+<button id="goal" hidden></button>
 <div id="labels"></div>
 <div id="bubbles"></div>
-<div id="gauge" hidden><div class="band"></div><div class="fill"></div></div>
-<div id="combo" hidden></div>
-<div id="panel" hidden></div>
-<div id="prep"></div>
+<nav id="nav">
+  <button id="navUpg"><span>Nâng cấp</span><b class="bdg" hidden></b></button>
+  <button id="navTask" class="mid"><span>Nhiệm vụ</span><b class="bdg" hidden></b></button>
+  <button id="navShop"><span>Quán</span><b class="bdg" hidden></b></button>
+</nav>
+<div id="sheet" hidden><div class="sheet-card" id="sheetCard"></div></div>
 <div id="toasts"></div>
 <div id="flash"></div>
+<div id="curtain" hidden></div>
 <div id="modal" hidden><div class="card" id="card"></div></div>
 <div id="splash">
   <div class="sp-in">

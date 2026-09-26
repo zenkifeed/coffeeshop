@@ -1,286 +1,305 @@
 // Logic thuần của game: không đụng DOM hay Three.js, để chạy được trong Node khi kiểm thử.
-import { ING, COMP, DRINKS, UPG, EVENTS, CFG, FIRST, REVIEW, ROOKIE } from './data.js';
+// Gồm: tiền và cấp trạm, derived() gom mọi hệ số, mô phỏng khách và nhân viên theo từng bước thời gian,
+// ước lượng thu nhập mỗi giây (dùng cho tiền lúc vắng mặt), nhiệm vụ, chuyển quán và cờ hướng dẫn.
+import { CFG, LAYOUT, SHOPS } from './data.js';
 
 export const rnd = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
-export function wpick(arr, w, rng = Math.random) {
-  let r = rng() * w.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < arr.length; i++) { r -= w[i]; if (r < 0) return arr[i]; }
-  return arr[arr.length - 1];
+
+/* ---------- định dạng tiền: k, tr, tỷ, nghìn tỷ ---------- */
+const UNITS = [[1e15, ' triệu tỷ'], [1e12, ' nghìn tỷ'], [1e9, ' tỷ'], [1e6, ' tr'], [1e3, 'k']];
+export function fmt(n) {
+  if (!Number.isFinite(n)) return '∞';
+  const sign = n < 0 ? '−' : '';
+  n = Math.abs(n);
+  if (n < 1e3) return sign + Math.round(n) + 'đ';
+  if (n >= 1e18) return sign + n.toExponential(2).replace('.', ',').replace('e+', 'e');
+  for (let i = UNITS.length - 1; i >= 0; i--) {
+    const [u, s] = UNITS[i], next = UNITS[i - 1];
+    const v = n / u, d = v >= 100 ? 0 : v >= 10 ? 1 : 2;
+    const r = Math.round(v * 10 ** d) / 10 ** d;
+    // 999,96k làm tròn thành 1000k thì chuyển lên đơn vị kế tiếp
+    if (next && (r >= 1000 || n >= next[0])) continue;
+    return sign + r.toLocaleString('vi-VN', { maximumFractionDigits: d }) + s;
+  }
+  return sign + n;
 }
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export const newRec = day => ({ day, sales: 0, tips: 0, served: 0, lost: 0, stars: [], buy: 0, upgrades: 0, spoil: { n: 0, v: 0 }, rent: 0, util: 0, waste: [], bonus: 0 });
-
-export function freshState(rng = Math.random) {
-  const sell = { L: CFG.sizeL };
-  Object.keys(DRINKS).forEach(k => { sell[k] = DRINKS[k].price; });
-  const stock = {};
-  Object.keys(ING).forEach(k => { stock[k] = []; });
-  const S = { v: 1, day: 1, money: CFG.startMoney, stock, unlocked: { den: true, sua: true }, sell, upg: {}, reviews: [], history: [], best: 0, cur: newRec(1), ev: null, evDay: 0, seenLv: 1, ftue: newFtue() };
-  rollDay(S, rng);
+/* ---------- trạng thái ---------- */
+const freshShop = () => ({ st: {}, upg: {}, claimed: {}, served: 0, earned: 0 });
+export const newFtue = () => ({ welcomed: false, skip: false, first: null, unlock: null, upg: null, move: null });
+export function freshState(shop = 0) {
+  const S = { v: 2, shop, money: SHOPS[shop].start, ...freshShop(), shopName: '', life: { served: 0, earned: 0 }, ftue: newFtue(), at: 0 };
+  S.st[SHOPS[shop].stations[0].id] = 1;
   return S;
 }
+export const shopOf = S => SHOPS[Math.min(S.shop, SHOPS.length - 1)];
+export const isLastShop = S => S.shop >= SHOPS.length - 1;
+export const stDef = (S, id) => shopOf(S).stations.find(s => s.id === id);
+export const stIndex = (S, id) => shopOf(S).stations.findIndex(s => s.id === id);
+export const lvOf = (S, id) => S.st[id] || 0;
 
-export const level = day => day >= CFG.levels.l3 ? 3 : day >= CFG.levels.l2 ? 2 : 1;
+/* ---------- cấp trạm và mốc ---------- */
+export const starsAt = lv => CFG.milestones.filter(m => lv >= m).length;
+export const nextMs = lv => CFG.milestones.find(m => m > lv) ?? null;
+export const prevMs = lv => [0, ...CFG.milestones].filter(m => m <= lv).pop();
+export const capAt = lv => 1 + CFG.capAt.filter(a => lv >= a).length;
 
-/* ---------- kho theo mẻ, có hạn dùng ---------- */
-export function addStock(S, k, q) {
-  if (!q) return;
-  const life = ING[k].life, exp = life ? S.day + life - 1 : 99999;
-  const b = S.stock[k].find(x => x.exp === exp);
-  if (b) b.q += q; else { S.stock[k].push({ q, exp }); S.stock[k].sort((a, c) => a.exp - c.exp); }
+// Mọi hệ số hiệu lực tính lại từ đầu mỗi lần gọi: cấp gốc + nâng cấp đã mua. Không lưu đệm giá trị nào.
+export function derived(S) {
+  const sh = shopOf(S), d = { staff: CFG.staff, walk: CFG.walk, prep: 1, spawn: 1, queue: CFG.queue, profit: {} };
+  sh.stations.forEach(s => { d.profit[s.id] = 1; });
+  sh.upgrades.forEach(u => {
+    if (!S.upg[u.id]) return;
+    if (u.fx === 'staff') d.staff++;
+    else if (u.fx === 'walk') d.walk *= u.v;
+    else if (u.fx === 'prep') d.prep *= u.v;
+    else if (u.fx === 'spawn') d.spawn *= u.v;
+    else if (u.fx === 'queue') d.queue++;
+    else if (u.fx === 'profit') {
+      const ids = u.st === 'all' ? sh.stations.map(s => s.id) : [].concat(u.st);
+      ids.forEach(id => { if (d.profit[id]) d.profit[id] *= u.v; });
+    }
+  });
+  d.queue = Math.min(5, d.queue);
+  d.gap = sh.gap / d.spawn;
+  return d;
 }
-export const qty = (S, k) => S.stock[k].reduce((a, b) => a + b.q, 0);
-export function take(S, k) {
-  const b = S.stock[k].find(x => x.q > 0);
-  if (!b) return false;
-  b.q--;
-  S.stock[k] = S.stock[k].filter(x => x.q > 0);
+
+export function profitOf(S, id, lv = lvOf(S, id), D = derived(S)) {
+  const s = stDef(S, id);
+  return lv > 0 ? s.price * lv * 2 ** starsAt(lv) * D.profit[id] : 0;
+}
+export const prepOf = (S, id, D = derived(S)) => stDef(S, id).time / D.prep;
+// Giá để lên từ cấp lv lên lv + 1.
+export const levelCost = (S, id, lv) => stDef(S, id).cost * CFG.growth ** (lv - 1);
+
+// Mua theo lô: mode là số cấp (1, 10), 'ms' (tới mốc kế tiếp) hoặc 'max' (nhiều nhất đủ tiền, ít nhất 1).
+// Trả về { n, cost }; n = 0 khi trạm đã tối đa.
+export function bulk(S, id, mode, money = S.money) {
+  const lv = lvOf(S, id), room = CFG.maxLv - lv;
+  if (lv < 1 || room <= 0) return { n: 0, cost: 0 };
+  let want = mode === 'ms' ? (nextMs(lv) ?? CFG.maxLv) - lv : mode === 'max' ? room : mode;
+  want = Math.min(want, room);
+  let n = 0, cost = 0;
+  while (n < want) {
+    const c = levelCost(S, id, lv + n);
+    if (mode === 'max' && n >= 1 && cost + c > money) break;
+    cost += c;
+    n++;
+  }
+  return { n, cost };
+}
+// Trả về số mốc vừa vượt qua (để game ăn mừng), -1 nếu không mua được.
+export function buyLevels(S, id, mode) {
+  const b = bulk(S, id, mode);
+  if (!b.n || S.money < b.cost) return -1;
+  const before = starsAt(lvOf(S, id));
+  S.money -= b.cost;
+  S.st[id] += b.n;
+  if (S.ftue.first === 'go') S.ftue.first = 'done';
+  return starsAt(S.st[id]) - before;
+}
+
+// Trạm mở lần lượt theo thứ tự; chỉ trạm khoá đầu tiên là mua được.
+export const nextLocked = S => shopOf(S).stations.find(s => !lvOf(S, s.id)) || null;
+export function unlock(S, id) {
+  const n = nextLocked(S);
+  if (!n || n.id !== id || S.money < n.unlock) return false;
+  S.money -= n.unlock;
+  S.st[id] = 1;
+  if (S.ftue.unlock === 'go') S.ftue.unlock = 'done';
   return true;
 }
-export function expireStock(S) {
-  const out = [];
-  Object.keys(S.stock).forEach(k => {
-    let q = 0;
-    S.stock[k] = S.stock[k].filter(b => { if (b.exp <= S.day) { q += b.q; return false; } return true; });
-    if (q) out.push({ k, q, v: q * ING[k].cost });
-  });
-  return out;
+export const upgDef = (S, id) => shopOf(S).upgrades.find(u => u.id === id);
+export function buyUpgrade(S, id) {
+  const u = upgDef(S, id);
+  if (!u || S.upg[id] || S.money < u.cost) return false;
+  S.money -= u.cost;
+  S.upg[id] = true;
+  if (S.ftue.upg === 'go') S.ftue.upg = 'done';
+  return true;
 }
-export const ingInUse = S => {
-  const set = new Set(['cup', 'beans', 'ice']);
-  Object.keys(DRINKS).filter(k => S.unlocked[k]).forEach(k => DRINKS[k].comps.forEach(c => { if (COMP[c].ing) set.add(COMP[c].ing); }));
-  return Object.keys(ING).filter(k => set.has(k));
-};
+export const upgList = S => shopOf(S).upgrades.filter(u => !S.upg[u.id]).sort((a, b) => a.cost - b.cost);
 
-/* ---------- sự kiện ---------- */
-export const ev = S => (S.ev && S.evDay === S.day ? S.ev : null);
-export const evIs = (S, id) => { const e = ev(S); return !!e && e.id === id; };
-export function rollDay(S, rng = Math.random) {
-  const d = S.day;
-  let e = null;
-  if (d > 1 && d % 15 === 0) e = { id: 'holiday' };
-  else if (d > 1 && (d % 7 === 6 || d % 7 === 0)) e = { id: 'weekend' };
-  else if (d > 2 && rng() < 0.25) {
-    e = { id: rnd(['hot', 'rain', 'trend', 'sale'], rng) };
-    if (e.id === 'trend') e.k = rnd(Object.keys(DRINKS).filter(k => S.unlocked[k]), rng);
-    if (e.id === 'sale') e.k = rnd(ingInUse(S), rng);
+/* ---------- mô phỏng khách và nhân viên ---------- */
+// W là thế giới tạm (không lưu): khách, nhân viên, chỗ đứng ở các trạm. Tải lại trang thì dựng W mới.
+export function newWorld(S) {
+  const W = { t: 0, spawnT: 0.6, uid: 0, cust: [], staff: [], spots: {}, D: derived(S) };
+  for (let i = 0; i < W.D.staff; i++) addStaff(W);
+  return W;
+}
+function addStaff(W) {
+  const x = LAYOUT.staffHome[W.staff.length % LAYOUT.staffHome.length], z = (LAYOUT.serveZ + LAYOUT.workZ) / 2;
+  const s = { id: ++W.uid, x, z, tx: x, tz: z, face: Math.PI, moving: false, state: 'idle', job: null, t: 0, dur: 0, carry: null };
+  W.staff.push(s);
+  return s;
+}
+function walk(e, speed, dt) {
+  const dx = e.tx - e.x, dz = e.tz - e.z, d = Math.hypot(dx, dz), st = speed * dt;
+  if (d <= st) { e.x = e.tx; e.z = e.tz; e.moving = false; return true; }
+  e.x += dx / d * st;
+  e.z += dz / d * st;
+  e.face = Math.atan2(dx, dz);
+  e.moving = true;
+  return false;
+}
+function freeSpot(W, S, st) {
+  const arr = W.spots[st] || (W.spots[st] = []), cap = capAt(lvOf(S, st));
+  for (let i = 0; i < cap; i++) if (!arr[i]) return i;
+  return -1;
+}
+const CUST_SPEED = 1.7;
+
+// Chạy mô phỏng thêm dt giây. Trả về danh sách sự kiện để game phát âm thanh và hiệu ứng.
+export function step(S, W, dt, rng = Math.random) {
+  const ev = [], D = W.D = derived(S), L = LAYOUT, sh = shopOf(S);
+  W.t += dt;
+  while (W.staff.length < D.staff) ev.push({ k: 'hire', s: addStaff(W) });
+
+  // khách tới: chỉ khi quầy còn chỗ đứng
+  W.spawnT -= dt;
+  if (W.spawnT <= 0) {
+    const slots = L.slotsX[D.queue], used = new Set(W.cust.filter(c => c.state !== 'out').map(c => c.slot));
+    const free = slots.map((_, i) => i).filter(i => !used.has(i));
+    const open = sh.stations.filter(s => lvOf(S, s.id) > 0);
+    if (free.length && open.length) {
+      const slot = rnd(free, rng), [x, z] = L.door;
+      const c = { id: ++W.uid, slot, x, z, tx: slots[slot], tz: L.custZ, face: 0, moving: true, state: 'in', st: rnd(open, rng).id, who: 0, t: 0, seed: rng() };
+      W.cust.push(c);
+      ev.push({ k: 'spawn', c });
+      W.spawnT = D.gap * (0.7 + rng() * 0.6);
+    } else W.spawnT = 0.4;
   }
-  S.ev = e;
-  S.evDay = d;
-}
-export const evText = (S, e) => EVENTS[e.id].d.replace('%', e.k ? (DRINKS[e.k] || ING[e.k]).n.toLowerCase() : '');
-export const ingCost = (S, k) => Math.round(ING[k].cost * (evIs(S, 'sale') && ev(S).k === k ? 0.7 : 1));
 
-/* ---------- giá và lượng khách ---------- */
-export const priceOf = (S, o) => S.sell[o.drink] + (o.size === 'L' ? S.sell.L : 0);
-export const priceIdx = (S, k) => S.sell[k] / DRINKS[k].price;
-export const upgCount = S => UPG.filter(u => S.upg[u.id]).length;
-export function sanitizePrices(S) {
-  Object.keys(DRINKS).forEach(k => {
-    const v = +S.sell[k];
-    S.sell[k] = clamp(Number.isFinite(v) ? Math.round(v / 1000) * 1000 : DRINKS[k].price, 1000, DRINKS[k].price * CFG.priceMaxMul);
-  });
-  const L = +S.sell.L;
-  S.sell.L = clamp(Number.isFinite(L) ? Math.round(L / 1000) * 1000 : CFG.sizeL, 0, CFG.sizeLMax);
-}
-export function rating(S) {
-  const r = S.reviews.slice(0, CFG.reviewWindow);
-  return r.length ? r.reduce((a, x) => a + x.s, 0) / r.length : 4;
-}
-export function avgPriceIdx(S) {
-  const ks = Object.keys(DRINKS).filter(k => S.unlocked[k]);
-  return ks.reduce((a, k) => a + priceIdx(S, k), 0) / ks.length;
-}
-export function traffic(S) {
-  const r = rating(S);
-  let rf = 0.45 + (r - 1) * 0.26;
-  if (r < 3.5) rf *= 0.8;
-  const ramp = S.day < 7 ? 0.75 + 0.035 * S.day : 1;
-  const boost = 1 + (S.upg.sign ? 0.2 : 0) + Math.min(S.day, 30) * 0.01;
-  const pf = clamp(1.5 - 0.5 * avgPriceIdx(S), 0.4, 1.15);
-  const e = ev(S);
-  return rf * ramp * boost * pf * (e ? EVENTS[e.id].mul : 1);
-}
-// el: 0 = giờ mở cửa, 1 = giờ đóng cửa. Cà phê đông nhất buổi sáng.
-export function rushMul(el) {
-  if (el < 0.2) return 1.5;
-  if (el < 0.33) return 0.9;
-  if (el < 0.47) return 1.2;
-  if (el < 0.6) return 0.6;
-  if (el < 0.73) return 1.1;
-  if (el < 0.87) return 1.3;
-  return 0.7;
-}
-export const spawnGap = (S, el, rng = Math.random) => 8 / traffic(S) / rushMul(el) * (0.75 + rng() * 0.5);
-
-/* ---------- đơn hàng ---------- */
-export function canMake(S, k, ice) {
-  if (!qty(S, 'cup')) return false;
-  if (ice && !qty(S, 'ice')) return false;
-  return DRINKS[k].comps.every(c => !COMP[c].ing || qty(S, COMP[c].ing) > 0);
-}
-function pickTemp(S, k, rng) {
-  const t = DRINKS[k].temps;
-  if (level(S.day) < 2 || t.length === 1) return t[0];
-  if (evIs(S, 'hot')) return rng() < 0.85 ? 'iced' : 'hot';
-  if (evIs(S, 'rain')) return rng() < 0.7 ? 'hot' : 'iced';
-  return rnd(t, rng);
-}
-// Trả về đơn một ly, hoặc { leave: 'pricey' | 'soldout', k }.
-export function genOrder(S, rng = Math.random) {
-  const unl = Object.keys(DRINKS).filter(k => S.unlocked[k]);
-  let k = evIs(S, 'trend') && S.unlocked[ev(S).k] && rng() < 0.5 ? ev(S).k : rnd(unl, rng);
-  if (priceIdx(S, k) > 1.6 && rng() < 0.8) {
-    const ok = unl.filter(x => priceIdx(S, x) <= 1.6);
-    if (!ok.length) return { leave: 'pricey', k };
-    k = rnd(ok, rng);
+  for (let i = W.cust.length - 1; i >= 0; i--) {
+    const c = W.cust[i];
+    if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = 0; ev.push({ k: 'order', c }); }
+    else if (c.state === 'got' && (c.t += dt) > 0.55) { c.state = 'out'; [c.tx, c.tz] = L.door; }
+    else if (c.state === 'out' && walk(c, CUST_SPEED * 1.1, dt)) { W.cust.splice(i, 1); ev.push({ k: 'gone', c }); }
   }
-  let ice = pickTemp(S, k, rng) === 'iced';
-  if (!canMake(S, k, ice)) {
-    const alt = unl.filter(x => x !== k && canMake(S, x, pickTemp(S, x, () => 0) === 'iced'));
-    if (!alt.length || rng() < 0.5) return { leave: 'soldout', k };
-    k = rnd(alt, rng);
-    ice = pickTemp(S, k, () => 0) === 'iced';
-  }
-  const lc = S.sell.L <= 7000 ? 0.3 : S.sell.L <= 12000 ? 0.12 : 0.03;
-  return { drink: k, size: rng() < lc ? 'L' : 'M', ice };
-}
-export function cupCount(S, rng = Math.random) {
-  if (level(S.day) >= 3) return wpick([1, 2, 3], [0.6, 0.3, 0.1], rng);
-  if (evIs(S, 'weekend') && rng() < 0.25) return 2;
-  return 1;
-}
-export function patienceFor(S, cups) {
-  const base = CFG.patience + (level(S.day) >= 2 ? 10 : 0);
-  return base * (S.upg.seats ? 1.25 : 1) * (1 + 0.7 * (cups.length - 1));
-}
-export const custName = (rng = Math.random) => rnd(FIRST, rng);
 
-/* ---------- ly đang pha ---------- */
-export const newCup = () => ({ size: null, comps: [], ice: false, shotP: 0, shotQ: null, cost: 0 });
-const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
-export const cupMatches = (cup, o) => cup.size === o.size && cup.ice === o.ice && sameSet(cup.comps, DRINKS[o.drink].comps);
-export const identifyDrink = cup => Object.keys(DRINKS).find(k => sameSet(cup.comps, DRINKS[k].comps)) || null;
-export function shotQuality(p, grinder) {
-  const { lo, hi } = CFG.shot, w = grinder ? 0.04 : 0;
-  return p < lo - w ? 'weak' : p > hi + w ? 'strong' : 'ok';
-}
-// Shot hoàn hảo: nằm trong 40% giữa của vùng chuẩn. Chỉ để thưởng cảm giác, không đổi tiền hay sao.
-export function shotPerfect(p, grinder) {
-  const { lo, hi } = CFG.shot, w = grinder ? 0.04 : 0;
-  return Math.abs(p - (lo + hi) / 2) <= (hi - lo + 2 * w) * 0.2;
-}
-// Bước pha tiếp theo cho đơn `o`: trạm cần chạm (để chiếu vòng sáng) và câu gợi ý.
-export function nextStep(cup, o) {
-  if (!o) return { key: null, text: '' };
-  const recipe = DRINKS[o.drink].comps;
-  if (!cup.size) return { key: o.size === 'L' ? 'cupL' : 'cupM', text: `Chạm chồng ly ${o.size} để lấy ly` };
-  if (cup.size !== o.size) return { key: 'trash', text: 'Sai size, chạm thùng rác để đổ ly' };
-  const extra = cup.comps.find(c => !recipe.includes(c));
-  if (extra) return { key: 'trash', text: `Dư ${COMP[extra].n.toLowerCase()}, chạm thùng rác để đổ ly` };
-  if (!cup.comps.includes('shot')) return { key: 'espresso', text: 'Nhấn giữ máy pha, thả tay khi vạch vào vùng xanh' };
-  const miss = recipe.find(c => !cup.comps.includes(c));
-  if (miss) return { key: miss, text: `Thêm ${COMP[miss].n.toLowerCase()}` };
-  if (o.ice && !cup.ice) return { key: 'ice', text: 'Thêm đá' };
-  if (!o.ice && cup.ice) return { key: 'trash', text: 'Ly nóng không có đá, đổ ly làm lại' };
-  return { key: 'serve', text: 'Chạm vào khách để giao ly' };
-}
-export const nextHint = (cup, o) => nextStep(cup, o).text;
-
-/* ---------- chấm sao, tip, đánh giá ---------- */
-export function stars(S, c, rng = Math.random) {
-  const w = 1 - Math.max(0, c.pat) / c.max;
-  const pricey = c.cups.some(o => priceIdx(S, o.drink) > 1.25 || (o.size === 'L' && S.sell.L > 12000));
-  const idx = c.cups.reduce((a, o) => a + priceIdx(S, o.drink), 0) / c.cups.length;
-  let s = 5, why = 'great';
-  if (w > 0.5) { s--; why = 'wait'; }
-  if (w > 0.8) s--;
-  if (c.shotPen) { s -= 1; if (why === 'great') why = 'weak'; }
-  if (pricey) { s--; why = 'pricey'; }
-  if (c.wrong) { s -= c.wrong; why = 'wrong'; }
-  if (rng() < 0.1) s--;
-  if (!pricey && idx < 0.9 && s < 5) { s++; if (why === 'great') why = 'cheap'; }
-  s = clamp(s, 1, 5);
-  if (why === 'great' && s < 5) why = 'ok';
-  return { s, why };
-}
-export function tipFor(S, c) {
-  const e = ev(S);
-  return Math.round(Math.max(0, c.pat) / c.max * 5) * 1000 * c.cups.length * (e && EVENTS[e.id].tip ? EVENTS[e.id].tip : 1);
-}
-export function addReview(S, s, why, name, rng = Math.random) {
-  const recent = new Set(S.reviews.slice(0, 12).map(r => r.t));
-  const all = REVIEW[why] || REVIEW.ok;
-  const pool = all.filter(t => !recent.has(t));
-  const t = rnd(pool.length ? pool : all, rng);
-  S.reviews.unshift({ s, t, n: name, d: S.day });
-  if (S.reviews.length > 300) S.reviews.length = 300;
-  S.cur.stars.push(s);
-}
-
-/* ---------- cuối ngày ---------- */
-export const recRevenue = r => r.sales + r.tips + (r.bonus || 0);
-export const recCost = r => r.buy + r.upgrades + r.rent + r.util;
-export function endDay(S, rng = Math.random) {
-  const r = S.cur;
-  r.rent = CFG.rent;
-  r.util = CFG.utilBase + upgCount(S) * CFG.utilPerUpg;
-  r.waste = expireStock(S);
-  S.money -= r.rent + r.util;
-  const revenue = recRevenue(r), cost = recCost(r), profit = revenue - cost;
-  S.history.push(r);
-  if (S.history.length > 120) S.history.shift();
-  const broke = S.money < 0;
-  if (!broke) {
-    S.best = Math.max(S.best, S.day);
-    S.day++;
-    S.cur = newRec(S.day);
-    rollDay(S, rng);
-  }
-  return { rec: r, revenue, cost, profit, broke };
-}
-
-/* ---------- hướng dẫn lần đầu + nhiệm vụ tân binh ---------- */
-// coached: đã xong (hoặc bỏ qua) phần chỉ dẫn pha ly đầu tiên. menuTut: null → 'go' → 'done'.
-export const newFtue = () => ({ welcomed: false, coached: false, skip: false, done: {}, claimed: {}, menuTut: null });
-const DEFAULT_DRINKS = ['den', 'sua'];
-export const unlockedExtra = S => Object.keys(DRINKS).some(k => S.unlocked[k] && !DEFAULT_DRINKS.includes(k));
-// Bản lưu có từ trước khi có hướng dẫn: người đã chơi thì không bắt học lại và không hiện nhiệm vụ tân binh.
-export function migrateFtue(S) {
-  if (!S.ftue) {
-    S.ftue = newFtue();
-    if (S.day > 1 || S.history.length || S.tutSeen) {
-      Object.assign(S.ftue, { welcomed: true, coached: true, menuTut: 'done' });
-      ROOKIE.forEach(t => { S.ftue.done[t.id] = true; S.ftue.claimed[t.id] = true; });
+  for (const s of W.staff) {
+    if (s.state === 'idle') {
+      // khách chờ lâu nhất trước, bỏ qua khách mà trạm của món đang kín chỗ
+      for (const c of W.cust) {
+        if (c.state !== 'wait' || c.who) continue;
+        const spot = freeSpot(W, S, c.st);
+        if (spot < 0) continue;
+        W.spots[c.st][spot] = s.id;
+        c.who = s.id;
+        s.job = { c: c.id, st: c.st, spot };
+        s.state = 'go';
+        s.tx = L.stationX[stIndex(S, c.st)] + L.spotDX[spot];
+        s.tz = L.workZ;
+        break;
+      }
+    }
+    if (s.state === 'go' && walk(s, D.walk, dt)) {
+      s.state = 'brew'; s.t = 0; s.dur = prepOf(S, s.job.st, D); s.face = 0;
+      ev.push({ k: 'brew', s, st: s.job.st });
+    } else if (s.state === 'brew' && (s.t += dt) >= s.dur) {
+      W.spots[s.job.st][s.job.spot] = 0;
+      const c = W.cust.find(x => x.id === s.job.c);
+      s.carry = s.job.st;
+      s.state = 'deliver';
+      s.tx = c ? c.tx : s.x;
+      s.tz = L.serveZ;
+      ev.push({ k: 'ready', s, st: s.job.st });
+    } else if (s.state === 'deliver' && walk(s, D.walk, dt)) {
+      const c = W.cust.find(x => x.id === s.job.c);
+      const amt = profitOf(S, s.job.st, undefined, D);
+      S.money += amt; S.earned += amt; S.served++;
+      S.life.earned += amt; S.life.served++;
+      ev.push({ k: 'serve', s, c, st: s.job.st, amt });
+      if (c) { c.state = 'got'; c.t = 0; }
+      s.carry = null; s.job = null; s.state = 'idle'; s.face = Math.PI;
     }
   }
-  S.ftue.done = S.ftue.done || {};
-  S.ftue.claimed = S.ftue.claimed || {};
-  if (unlockedExtra(S)) S.ftue.menuTut = 'done';
-  return S;
+  return ev;
 }
-// Trả về true nếu vừa hoàn thành lần đầu (để báo cho người chơi đúng một lần).
-export function rookieDone(S, id) {
-  if (!ROOKIE.some(t => t.id === id) || S.ftue.done[id]) return false;
-  S.ftue.done[id] = true;
+// Tiến độ pha của một trạm (0..1), lấy người pha lâu nhất; -1 nếu không ai đang pha.
+export function brewProgress(W, st) {
+  let p = -1;
+  for (const s of W.staff) if (s.state === 'brew' && s.job.st === st) p = Math.max(p, Math.min(1, s.t / s.dur));
+  return p;
+}
+
+/* ---------- ước lượng thu nhập mỗi giây ---------- */
+// Không chạy mô phỏng: lấy min của ba giới hạn (khách tới, sức nhân viên, sức trạm) nhân tiền trung bình một ly.
+// Kiểm thử so con số này với mô phỏng thật để nó không lệch quá xa.
+const EFF = 0.85;
+export function rate(S, D = derived(S)) {
+  const sh = shopOf(S), open = sh.stations.filter(s => lvOf(S, s.id) > 0), k = open.length;
+  if (!k) return 0;
+  const slots = LAYOUT.slotsX[D.queue], dz = LAYOUT.workZ - LAYOUT.serveZ;
+  let P = 0, C = 0, cap = Infinity;
+  open.forEach(s => {
+    const sx = LAYOUT.stationX[sh.stations.indexOf(s)];
+    const dx = slots.reduce((a, x) => a + Math.abs(x - sx), 0) / slots.length;
+    const prep = s.time / D.prep;
+    P += profitOf(S, s.id, undefined, D) / k;
+    C += (2 * Math.hypot(dx, dz) / D.walk + prep) / k;
+    cap = Math.min(cap, capAt(lvOf(S, s.id)) / prep * k);
+  });
+  // mỗi chỗ đứng bị giữ từ lúc khách bước vào cửa tới lúc cầm ly đi: đi vào + chờ pha + chờ đi ra
+  const [ddx, ddz] = LAYOUT.door, walkIn = slots.reduce((a, x) => a + Math.hypot(x - ddx, LAYOUT.custZ - ddz), 0) / slots.length / CUST_SPEED;
+  const queue = D.queue / (walkIn + C + 0.55);
+  return Math.min(1 / D.gap, D.staff / C, cap, queue) * P * EFF;
+}
+export const offlineSecs = secs => Math.min(Math.max(0, secs), CFG.offlineCapH * 3600);
+
+/* ---------- nhiệm vụ ---------- */
+export function taskProg(S, t) {
+  const cur = t.k === 'level' ? lvOf(S, t.st) : t.k === 'unlock' ? +(lvOf(S, t.st) > 0) : t.k === 'upg' ? +!!S.upg[t.id] : S.served;
+  const need = t.k === 'level' || t.k === 'served' ? t.v : 1;
+  return { cur: Math.min(cur, need), need, done: cur >= need };
+}
+export function taskText(S, t) {
+  if (t.k === 'level') return `Nâng ${stDef(S, t.st).n} lên cấp ${t.v}`;
+  if (t.k === 'unlock') return `Mở trạm ${stDef(S, t.st).n}`;
+  if (t.k === 'upg') return upgDef(S, t.id).n;
+  return `Phục vụ ${t.v} khách`;
+}
+export const tasks = S => shopOf(S).tasks.map((t, i) => ({ ...t, i, ...taskProg(S, t), claimed: !!S.claimed[i] }));
+export function claimTask(S, i) {
+  const t = shopOf(S).tasks[i];
+  if (!t || S.claimed[i] || !taskProg(S, t).done) return 0;
+  S.claimed[i] = true;
+  S.money += t.r;
+  return t.r;
+}
+export const tasksClaimable = S => tasks(S).filter(t => t.done && !t.claimed).length;
+export const allClaimed = S => shopOf(S).tasks.every((_, i) => S.claimed[i]);
+export const canMove = S => allClaimed(S) && !isLastShop(S);
+export function moveShop(S) {
+  if (!canMove(S)) return false;
+  const next = S.shop + 1;
+  Object.assign(S, freshShop(), { shop: next, money: SHOPS[next].start });
+  S.st[SHOPS[next].stations[0].id] = 1;
+  if (S.ftue.move === 'go') S.ftue.move = 'done';
   return true;
 }
-export function rookieClaim(S, id) {
-  const t = ROOKIE.find(x => x.id === id);
-  if (!t || !S.ftue.done[id] || S.ftue.claimed[id]) return 0;
-  S.ftue.claimed[id] = true;
-  S.money += t.reward;
-  S.cur.bonus = (S.cur.bonus || 0) + t.reward;
-  return t.reward;
+
+/* ---------- hướng dẫn theo ngữ cảnh: null → 'go' → 'done' ---------- */
+// Bật đúng lúc lần đầu có việc để làm, tắt khi người chơi làm thật (trong buyLevels, unlock, buyUpgrade, moveShop).
+// Trả về true nếu có cờ vừa đổi để game lưu lại.
+export function checkTuts(S) {
+  const f = S.ftue, before = JSON.stringify(f);
+  if (!f.welcomed) return false;
+  if (f.skip) { ['first', 'unlock', 'upg', 'move'].forEach(k => { if (f[k] !== 'done') f[k] = 'done'; }); }
+  else {
+    if (f.first == null) f.first = 'go';
+    if (f.first === 'done') {
+      const n = nextLocked(S);
+      if (f.unlock == null && n && S.money >= n.unlock) f.unlock = 'go';
+      if (f.upg == null && f.unlock !== 'go' && upgList(S).some(u => S.money >= u.cost)) f.upg = 'go';
+    }
+    if (f.move == null && canMove(S)) f.move = 'go';
+  }
+  return JSON.stringify(f) !== before;
 }
-export const rookieActive = S => S.ftue.welcomed && ROOKIE.some(t => !S.ftue.claimed[t.id]);
-export const rookieState = S => ROOKIE.map(t => ({ ...t, done: !!S.ftue.done[t.id], claimed: !!S.ftue.claimed[t.id] }));
-// Hướng dẫn theo ngữ cảnh: lần đầu đủ tiền mở món mới thì chỉ chỗ mở.
-export function checkMenuTut(S) {
-  if (S.ftue.menuTut != null || S.ftue.skip || !S.ftue.coached || unlockedExtra(S)) return false;
-  const cheapest = Math.min(...Object.keys(DRINKS).filter(k => !S.unlocked[k]).map(k => DRINKS[k].unlock));
-  if (S.money < cheapest) return false;
-  S.ftue.menuTut = 'go';
-  return true;
+// Nhiệm vụ lời mời: một câu gợi ý việc nên làm tiếp, cho người chơi đã tắt hướng dẫn cũng có hướng.
+export function nextGoal(S) {
+  const t = tasks(S).find(x => !x.claimed);
+  return t ? { ...t, text: taskText(S, t) } : null;
 }
