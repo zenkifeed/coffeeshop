@@ -311,3 +311,18 @@ button.ren svg { width: 18px; height: 18px; }
   .sheet-card.enter, .trow, #curtain.in { animation-name: fadeIn !important; }
   .float { animation-name: fadeIn !important; animation-direction: reverse !important; }
 }
+
+/* ---------- chọn cách chơi lần đầu: Discord hay khách ---------- */
+.wel-hero img { width: 100%; height: 100%; border-radius: 24%; border: 3px solid var(--ink); box-shadow: var(--shadow-sm); object-fit: cover; }
+.login .wel-hero { width: 92px; height: 92px; }
+.login-opts { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.lg-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; border-radius: 16px; text-align: left; border: 3px solid var(--ink); box-shadow: var(--shadow); }
+.lg-opt:active { box-shadow: 0 0 0 var(--ink); }
+.lg-opt i { width: 38px; height: 38px; flex: none; display: grid; place-items: center; }
+.lg-opt i svg { width: 100%; height: 100%; }
+.lg-opt b { display: block; font-size: 17px; font-weight: 800; line-height: 1.15; }
+.lg-opt small { display: block; font-size: 12px; font-weight: 600; line-height: 1.25; opacity: .9; }
+.lg-opt.discord { background: #5865f2; color: #fff; }
+.lg-opt.discord i { width: 34px; height: 34px; }
+.lg-opt.guest { background: #fff; color: var(--ink); }
+.lg-opt.guest small { color: var(--soft); }

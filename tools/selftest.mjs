@@ -289,7 +289,16 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   delete process.env.VERCEL;
   process.chdir(cwd);
 
-  const { sameProgress, isFresh } = await import('../src/cloud.js');
+  const { sameProgress, isFresh, authStep } = await import('../src/cloud.js');
+  const on = { online: true, user: null, login: null, tried: false };
+  ok(authStep(null, on) === 'popup' && authStep(undefined, on) === 'popup', 'lần đầu vào game (chưa chọn) thì hỏi Discord hay khách');
+  ok(authStep('guest', on) === 'continue' && authStep('guest', { ...on, online: false }) === 'continue', 'đã chọn khách thì vào thẳng, không hỏi lại');
+  ok(authStep('discord', { ...on, user: { id: '1' } }) === 'continue', 'đã chọn Discord và còn phiên thì vào thẳng');
+  ok(authStep(null, { ...on, user: { id: '1' } }) === 'continue', 'đang đăng nhập sẵn (bản trước) thì không bị hỏi');
+  ok(authStep('discord', on) === 'redirect', 'đã chọn Discord mà phiên hết hạn thì tự đăng nhập lại');
+  ok(authStep('discord', { ...on, tried: true }) === 'popup', 'đã tự thử một lần trong tab này thì hỏi lại, không lặp vòng');
+  ok(authStep('discord', { ...on, login: 'fail' }) === 'popup' && authStep('discord', { ...on, login: 'cancel' }) === 'popup', 'vừa đăng nhập thất bại hoặc huỷ thì hỏi lại để có thể chọn khách');
+  ok(authStep('discord', { ...on, online: false }) === 'offline', 'mất mạng thì tạm chơi trên máy, không chuyển sang Discord');
   const a = L.freshState(), b = { ...L.freshState(), at: 123 };
   ok(sameProgress(a, b) && !sameProgress(a, { ...b, money: 1 }), 'so tiến trình bỏ qua mốc thời gian lưu');
   ok(isFresh(L.freshState()) && !isFresh({ ...L.freshState(), life: { served: 3, earned: 1 } }), 'bản còn trắng thì lấy bản trên mây không cần hỏi');

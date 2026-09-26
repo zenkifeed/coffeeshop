@@ -11,7 +11,9 @@ Mọi hình ảnh, âm thanh và nhạc nền đều được tạo bằng code 
 
 ### Bắt đầu
 
-Lần đầu vào game có thẻ chào mừng. Chọn **"Chỉ mình cách chơi"** để được bong bóng chỉ dẫn từng bước, hoặc **"Bỏ qua, mình tự chơi"**. Dòng nhiệm vụ ở phía trên màn hình luôn gợi ý việc nên làm tiếp.
+Lần đầu vào game, chọn **Đăng nhập bằng Discord** (lưu tiến trình lên mây, chơi tiếp trên máy khác) hoặc **Chơi với tư cách khách** (chỉ lưu trên máy này). Game nhớ lựa chọn ở các lần sau; muốn đổi thì vào Cài đặt.
+
+Tiếp theo là thẻ chào mừng. Chọn **"Chỉ mình cách chơi"** để được bong bóng chỉ dẫn từng bước, hoặc **"Bỏ qua, mình tự chơi"**. Dòng nhiệm vụ ở phía trên màn hình luôn gợi ý việc nên làm tiếp.
 
 ### Quán vận hành
 

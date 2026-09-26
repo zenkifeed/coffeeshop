@@ -8,7 +8,7 @@ import { Music } from './music.js';
 import { opts, saveOpts, haptic } from './feel.js';
 import * as SV from './save.js';
 import { Coach } from './coach.js';
-import { Cloud, sameProgress, isFresh } from './cloud.js';
+import { Cloud, sameProgress, isFresh, authStep } from './cloud.js';
 import { $, esc, ICON, bearIcon, drinkIcon, starsHTML, toast, floatText, flash, punchEl, retrigger, centerOf, coinFly, domBurst, countUp, modal, modalOpen } from './ui.js';
 
 const fmt = L.fmt;
@@ -614,8 +614,9 @@ function accountHTML() {
 }
 function bindAccount() {
   const li = $('dcLogin'), lo = $('dcOut');
-  if (li) li.onclick = () => { sfx.uiPrimary(); save(); Cloud.login(); };
-  if (lo) lo.onclick = async () => { await Cloud.push(S); await Cloud.logout(); toast('Đã đăng xuất Discord. Tiến trình vẫn lưu trên máy này'); settings(); };
+  if (li) li.onclick = () => { sfx.uiPrimary(); rememberAuth('discord'); save(); Cloud.login(); };
+  // đăng xuất = chọn chơi khách trên máy này: lần sau vào game không tự đăng nhập lại
+  if (lo) lo.onclick = async () => { await Cloud.push(S); await Cloud.logout(); rememberAuth('guest'); toast('Đã đăng xuất Discord. Tiến trình vẫn lưu trên máy này'); settings(); };
 }
 // Tóm tắt một bản lưu để người chơi nhận ra: chi nhánh, tiền, số khách, lúc lưu.
 const saveLine = (d, at) => `<b>${esc(SHOPS[d.shop] ? SHOPS[d.shop].n : '?')}</b> · ${fmt(d.money)} · ${(d.life && d.life.served || 0).toLocaleString('vi-VN')} khách${at ? ' · ' + whenOf(at) : ''}`;
@@ -626,7 +627,7 @@ async function cloudSync(next = () => {}) {
   if (!rec) { toast('Chưa kết nối được máy chủ lưu, tạm lưu trên máy', true); return next(); }
   const cloud = rec.data;
   const keepLocal = async () => { Cloud.synced = true; if (await Cloud.push(S, true)) toast('Đã lưu tiến trình lên Discord'); next(); };
-  const takeCloud = () => { Cloud.synced = true; Cloud.lastAt = rec.at; applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
+  const takeCloud = () => { R.tookCloud = true; Cloud.synced = true; Cloud.lastAt = rec.at; applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
   if (!cloud) return keepLocal();
   if (sameProgress(cloud, S)) { Cloud.synced = true; Cloud.lastAt = rec.at; return next(); }
   if (isFresh(S)) return takeCloud();
@@ -637,7 +638,7 @@ async function cloudSync(next = () => {}) {
 }
 // Quay về từ Discord (?login=ok|fail|cancel): báo kết quả rồi xoá tham số khỏi thanh địa chỉ.
 function loginResult() {
-  const q = new URLSearchParams(location.search), r = q.get('login');
+  const r = LOGIN_PARAM;
   if (!r) return;
   history.replaceState(null, '', location.pathname);
   if (r === 'ok' && Cloud.user) toast(`Đã đăng nhập Discord: <b>${esc(Cloud.user.name)}</b>`);
@@ -759,13 +760,56 @@ function runCoach() {
 
 /* ---------- khởi động ---------- */
 const cloudReady = Cloud.me();
+// Tham số ?login= khi vừa từ Discord quay về; đọc một lần lúc tải trang (loginResult sẽ xoá nó khỏi địa chỉ).
+const LOGIN_PARAM = new URLSearchParams(location.search).get('login');
+
+/* ---------- chọn cách chơi: khách hay Discord, nhớ trên máy này ---------- */
+// opts.auth: null (chưa chọn) | 'guest' | 'discord'. Lưu cùng tuỳ chọn âm thanh nên "Chơi lại từ đầu" không xoá.
+function rememberAuth(v) { if (opts.auth !== v) { opts.auth = v; saveOpts(); } }
+// Tự chuyển sang Discord tối đa một lần mỗi tab, để phiên hết hạn mà Discord lỗi thì không lặp vòng.
+const AUTO_KEY = 'cafe3d_autologin';
+const autoTried = () => { try { return sessionStorage.getItem(AUTO_KEY) === '1'; } catch (e) { return true; } };
+const markTried = () => { try { sessionStorage.setItem(AUTO_KEY, '1'); } catch (e) { /* bỏ qua */ } };
+function goDiscord() { markTried(); rememberAuth('discord'); save(); Cloud.login(); }
+function authGate(next) {
+  loginResult();   // vừa từ Discord về: báo kết quả ngay và xoá ?login= khỏi thanh địa chỉ
+  const step = authStep(opts.auth, { online: Cloud.online, user: Cloud.user, login: LOGIN_PARAM, tried: autoTried() });
+  if (step === 'continue') { if (Cloud.user) rememberAuth('discord'); return next(); }
+  if (step === 'offline') { toast('Chưa kết nối được Discord, tạm chơi và lưu trên máy này', true); return next(); }
+  if (step === 'redirect') return goDiscord();          // rời trang sang Discord, quay về là vào thẳng
+  loginDlg(next);
+}
+function loginDlg(next) {
+  const off = !Cloud.online;
+  modal(`<div class="wel-hero"><img src="icons/icon.svg" alt=""></div><h2>Vào quán thôi!</h2>
+    <p class="muted small">Chọn cách chơi. Lần sau game nhớ lựa chọn này, đổi được trong Cài đặt.</p>
+    <div class="login-opts">
+      <button class="lg-opt discord${off ? ' dis' : ''}" id="lgDiscord" data-quiet><i>${DISCORD_ICON}</i><span><b>Đăng nhập bằng Discord</b><small>${off ? 'Chưa kết nối được máy chủ, thử lại sau' : 'Lưu tiến trình lên mây, chơi tiếp trên máy khác'}</small></span></button>
+      <button class="lg-opt guest" id="lgGuest" data-quiet><i>${bearIcon('white')}</i><span><b>Chơi với tư cách khách</b><small>Tiến trình chỉ lưu trên máy này</small></span></button>
+    </div>`, [], 'welcome login');
+  $('lgDiscord').onclick = () => {
+    if (off) return deny('Chưa kết nối được máy chủ. Chơi khách trước, đăng nhập sau trong Cài đặt nhé');
+    sfx.uiPrimary(); haptic('primary'); goDiscord();
+  };
+  $('lgGuest').onclick = () => {
+    sfx.uiPrimary(); haptic('primary');
+    $('modal').hidden = true;
+    rememberAuth('guest');
+    toast('Đang chơi với tư cách khách');
+    next();
+  };
+}
+
 function bootChecks() {
   const steps = [];
   if (loaded.status === 'corrupt') steps.push(corruptDlg);
   if (!SV.storageOk()) { R.noStoreWarned = true; steps.push(storeWarn); }
-  if (!S.ftue.welcomed) steps.push(welcomeDlg);
-  else if (bootAt) steps.push(next => offlineDlg(bootAt, next));
-  steps.push(next => { loginResult(); cloudSync(next); });
+  steps.push(authGate);
+  steps.push(cloudSync);
+  // thẻ chào mừng sau khi đồng bộ: tải bản trên mây về rồi thì không chào lại
+  steps.push(next => (S.ftue.welcomed ? next() : welcomeDlg(next)));
+  // tiền lúc vắng mặt tính theo bản trên máy; nếu vừa lấy bản trên mây thì cloudSync đã tính rồi
+  steps.push(next => (bootAt && !R.tookCloud ? offlineDlg(bootAt, next) : next()));
   const run = () => { const f = steps.shift(); if (f) f(run); };
   // biết đã đăng nhập hay chưa trước khi chạy các bước (không chờ quá hạn gọi mạng)
   cloudReady.then(run);
