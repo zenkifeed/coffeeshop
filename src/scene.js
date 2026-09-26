@@ -6,6 +6,7 @@ import { LAYOUT, BEARS } from './data.js';
 import { motionScale } from './feel.js';
 import * as P from './props.js';
 import { buildStreet } from './street.js';
+import { buildRooftop } from './rooftop.js';
 import { buildBear, buildKid, animBear, animKid, emote as emoteActor, newActor, heartGeometry, BEAR_HEAD, BEAR_CARRY, KID_HEAD, KID_HAND } from './chars.js';
 
 const TOP_FRONT = 0.95, TOP_BACK = 0.95;
@@ -433,7 +434,8 @@ export function createScene(canvas, handlers) {
     const seen = new Set();
     for (const c of W.cust) {
       seen.add(c.id);
-      const m = custs.get(c.id) || addActor(custs, c.id, buildKid(lookFor(c.seed)), c, 'cust');
+      const m = custs.get(c.id) || addActor(custs, c.id, buildKid({ ...lookFor(c.seed), ...(c.vip ? { vip: true, shirt: 0xffd166 } : {}) }), c, 'cust');
+      if (c.vip && Math.random() < realVipSparkle(dt)) burst('spark', m.g.localToWorld(tv.copy(KID_HEAD)), 1);
       place(m, c, dt);
       if (c.state === 'got' && !m.cup) holdCup(m, colorOf(c.st));
     }
@@ -450,6 +452,8 @@ export function createScene(canvas, handlers) {
     stations.forEach(st => { st.prog = -1; });
     for (const b of W.staff) if (b.state === 'brew') { const st = stations.get(b.job.st); if (st) st.prog = Math.max(st.prog, Math.min(1, b.t / b.dur)); }
   }
+  // khách VIP lấp lánh quanh đầu: khoảng 4 hạt mỗi giây
+  const realVipSparkle = dt => dt * 4;
   function place(m, e, dt) {
     m.g.position.x = e.x;
     m.g.position.z = e.z;
@@ -591,7 +595,8 @@ export function createScene(canvas, handlers) {
   /* ---------- đổi quán: phòng, màu, trạm ---------- */
   function setShop(shop) {
     if (room) scene.remove(room);
-    room = shop.theme.style === 'street' ? buildStreet(shop.theme) : buildRoom(shop.theme);
+    const style = shop.theme.style;
+    room = style === 'street' ? buildStreet(shop.theme) : style === 'rooftop' ? buildRooftop(shop.theme) : buildRoom(shop.theme);
     apron = shop.theme.apron;
     scene.add(room);
     scene.background = new THREE.Color(shop.theme.sky);
@@ -601,6 +606,7 @@ export function createScene(canvas, handlers) {
   }
 
   function update(dt, realDt = dt) {
+    if (room && room.userData.tick) room.userData.tick(realDt, camT);
     updateCamera(realDt);
     animPeople(dt);
     stations.forEach(s => {
@@ -707,7 +713,42 @@ function buildRoom(t) {
       f.castShadow = false;
     }
   });
+  if (t.style === 'cabin') buildCabin(g, t);
   return g;
+}
+
+// Nhà gỗ Đà Lạt: vách gỗ ghép thanh, lò sưởi đá có lửa bập bùng, cây thông trong chậu.
+function buildCabin(g, t) {
+  const log = mat(new THREE.Color(t.wall).lerp(new THREE.Color(0x8a6446), 0.35).getHex());
+  for (let y = 1.3; y < 4.1; y += 0.34) box(24, 0.05, 0.03, log, 0, y, -4.88, g).castShadow = false;
+  // lò sưởi bên phải tường sau
+  const stone = mat(0xb8b0a6), dark = mat(0x2b2520);
+  const fx = 4.9;
+  box(1.9, 1.6, 0.5, stone, fx, 0.8, -4.72, g);
+  box(2.1, 0.14, 0.62, mat(0x8a6446), fx, 1.66, -4.7, g);
+  box(0.9, 2.5, 0.4, stone, fx, 2.95, -4.8, g);
+  box(1.1, 0.8, 0.1, dark, fx, 0.55, -4.44, g).castShadow = false;
+  [-0.2, 0.15].forEach((dx, i) => { const l = cyl(0.07, 0.07, 0.7, mat(0x6b4630), fx + dx, 0.26, -4.42, g, 8); l.rotation.set(0, 0.4 - i * 0.8, Math.PI / 2); });
+  const flames = [0xff8a3d, 0xffd23f, 0xff6b3d].map((c, i) => {
+    const f = mesh(new THREE.ConeGeometry(0.13 - i * 0.02, 0.4 - i * 0.06, 8), new THREE.MeshBasicMaterial({ color: c }), fx - 0.15 + i * 0.15, 0.5, -4.4, g);
+    f.castShadow = false;
+    return f;
+  });
+  const glow = new THREE.PointLight(0xffa04d, 1.2, 4, 2);
+  glow.position.set(fx, 0.8, -4.1);
+  g.add(glow);
+  g.userData.tick = (dt, tt) => {
+    flames.forEach((f, i) => { const k = 1 + Math.sin(tt * (9 + i * 3) + i) * 0.18; f.scale.set(1, k, 1); });
+    glow.intensity = 1.1 + Math.sin(tt * 11) * 0.2 + Math.sin(tt * 17) * 0.1;
+  };
+  // cây thông trong chậu gỗ
+  const pine = (x, z) => {
+    box(0.5, 0.36, 0.5, mat(0x8a6446), x, 0.18, z, g);
+    cyl(0.06, 0.08, 0.5, mat(0x6b4630), x, 0.55, z, g, 8);
+    [[0.55, 0.9], [0.44, 1.3], [0.32, 1.68]].forEach(([r, y]) => mesh(new THREE.ConeGeometry(r, 0.7, 12), mat(0x4f8f5c), x, y, z, g));
+  };
+  pine(-3.1, -4.4);
+  pine(2.6, -4.4);
 }
 
 /* ================= quầy trước (đưa ly) và quầy sau (trạm pha) ================= */

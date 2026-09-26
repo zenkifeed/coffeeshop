@@ -1,6 +1,6 @@
 // Điều phối: vòng mô phỏng, thanh trên, nhãn trạm, bảng trượt (trạm, nâng cấp, nhiệm vụ, quán),
 // chuyển quán, tiền lúc vắng mặt, lưu và hướng dẫn. Luật chơi nằm ở logic.js, phần vẽ 3D ở scene.js.
-import { CFG, SHOPS, BEARS } from './data.js';
+import { CFG, SHOPS, BEARS, VAULT, FEATURES } from './data.js';
 import * as L from './logic.js';
 import { createScene } from './scene.js';
 import { sfx, unlock as audioUnlock, setSfx, pauseAudio } from './audio.js';
@@ -109,11 +109,11 @@ function labelText() {
     const el = labelEls.get(s.id), lv = L.lvOf(S, s.id);
     let key, html, cls;
     if (lv) {
-      const b = L.bulk(S, s.id, 1), can = b.n && S.money >= b.cost;
-      key = `u${lv}|${can}`;
+      const b = L.bulk(S, s.id, 1), can = b.n && S.money >= b.cost, hot = L.hotSt(W) === s.id;
+      key = `u${lv}|${can}|${hot}`;
       const st = L.starsAt(lv);
-      html = `<b>Cấp ${lv}</b>${st ? `<span class="st">${ICON.star}${st}</span>` : ''}${can ? `<i class="up">${ICON.up}</i>` : ''}<span class="bar"><i></i></span>`;
-      cls = 'lbl' + (can ? ' can' : '');
+      html = `<b>Cấp ${lv}</b>${st ? `<span class="st">${ICON.star}${st}</span>` : ''}${can ? `<i class="up">${ICON.up}</i>` : ''}${hot ? `<i class="hotb">${ICON.flame}</i>` : ''}<span class="bar"><i></i></span>`;
+      cls = 'lbl' + (can ? ' can' : '') + (hot ? ' hot' : '');
     } else if (next && next.id === s.id) {
       const can = S.money >= s.unlock;
       key = `n${can}`;
@@ -144,7 +144,7 @@ function bubbles() {
     if (!el) {
       const d = L.stDef(S, c.st);
       el = document.createElement('div');
-      el.className = 'bub';
+      el.className = 'bub' + (c.vip ? ' vip' : '');
       el.innerHTML = drinkIcon(d.c, d.ice);
       $('bubbles').appendChild(el);
       bubbleEls.set(c.id, el);
@@ -169,12 +169,27 @@ function handle(ev) {
   for (const e of ev) {
     if (e.k === 'serve') {
       const hp = e.c && scene.headScreen(e.c.id);
-      if (hp) { floatText(hp.x, hp.y - 4, '+' + fmt(e.amt), 'money sm'); coinFly(hp.x, hp.y, 1, true); }
+      if (hp) {
+        floatText(hp.x, hp.y - 4, '+' + fmt(e.amt), 'money sm' + (e.vip ? ' vip' : e.hot ? ' hot' : ''));
+        coinFly(hp.x, hp.y, e.vip ? 4 : 1, !e.vip);
+        // khách VIP: kim cương bay về ô kim cương
+        if (e.gems) { setTimeout(() => { floatText(hp.x, hp.y - 40, '+' + e.gems + ' ' + ICON.gem, 'gemtx'); coinFly(hp.x, hp.y - 20, e.gems, false, true); }, 180); }
+      }
+      if (e.vip && e.c) { scene.burstAt({ cust: e.c.id, head: true }, 'star', 6); scene.burstAt({ cust: e.c.id, head: true }, 'confetti', 14); scene.punch(0.2); haptic('reward'); }
       scene.emote({ staff: e.s.id }, 'serve');
       if (e.c) { scene.burstAt({ cust: e.c.id }, 'coin', 3); scene.emote({ cust: e.c.id }, 'love'); scene.burstAt({ cust: e.c.id, head: true }, 'heart', 2); }
       sfx.cash();
     } else if (e.k === 'brew') { if (sfxOk('brew')) sfx.brew(L.stDef(S, e.st).prop); }
     else if (e.k === 'ready') { if (sfxOk('ready')) sfx.ding(L.stIndex(S, e.st)); }
+    else if (e.k === 'spawn' && e.c.vip) { sfx.vip(); toast(`${ICON.crown} <b>Khách VIP</b> ghé quán! Trả gấp ${CFG.vip.mul} lần, tặng kim cương`); }
+    else if (e.k === 'hot') {
+      const d = L.stDef(S, e.st);
+      sfx.hot();
+      scene.celebrateStation(e.st, false);
+      toast(`${ICON.flame} Món hot: <b>${esc(d.n)}</b>! Khách đổ xô gọi, trả gấp ${CFG.hot.mul}`);
+    }
+    else if (e.k === 'boostEnd') { Music.setTempo(1); toast('Hết tăng tốc. Nghỉ một lúc là bấm lại được'); }
+    else if (e.k === 'boostReady') { sfx.ding(4); retrigger($('boostBtn'), 'pop'); if (!modalOpen()) toast(`${ICON.bolt} Tăng tốc đã sẵn sàng!`); }
     else if (e.k === 'order') {
       // khách vừa tới quầy: một bạn gấu đang rảnh vẫy tay chào
       const idle = W.staff.filter(s => s.state === 'idle');
@@ -195,6 +210,37 @@ function hud() {
   const m = R.disp;
   const t = fmt(m);
   if ($('hMoney')._t !== t) { $('hMoney')._t = t; $('hMoney').textContent = t; }
+  const g = String(S.gems);
+  if ($('hGems')._t !== g) { $('hGems')._t = g; $('hGems').textContent = g; }
+  boostBtn();
+}
+// Nút tăng tốc: sẵn sàng (nhịp nhẹ), đang chạy (đếm ngược, vòng vơi dần), đang hồi (xám, vòng đầy dần).
+const mmss = s => { s = Math.ceil(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function boostBtn() {
+  const btn = $('boostBtn');
+  if (btn.hidden) return;
+  const st = L.boostState(S), b = S.boost;
+  const k = st === 'active' ? b.left / L.boostDur(S) : st === 'cd' ? 1 - b.cd / CFG.boost.cd : 1;
+  const tx = st === 'ready' ? '×2' : mmss(st === 'active' ? b.left : b.cd);
+  if (btn._st !== st) { btn._st = st; btn.className = st; Music.setTempo(st === 'active' ? 1.12 : 1); }
+  if ($('boostTx')._t !== tx) { $('boostTx')._t = tx; $('boostTx').textContent = tx; }
+  btn.style.setProperty('--k', k.toFixed(3));
+}
+function doBoost() {
+  const st = L.boostState(S);
+  if (st === 'active') return toast(`Đang tăng tốc, còn ${mmss(S.boost.left)}`);
+  if (st === 'cd') return deny(`Tăng tốc đang hồi, còn ${mmss(S.boost.cd)}`);
+  if (!L.activateBoost(S)) return;
+  const [x, y] = centerOf($('boostBtn'));
+  sfx.boost();
+  haptic('reward');
+  flash('good');
+  domBurst(x, y, 22);
+  scene.punch(0.3);
+  scene.cheerAll();
+  Music.setTempo(1.12);
+  toast(`${ICON.bolt} Tăng tốc: mọi món bán gấp ${CFG.boost.mul} trong ${Math.round(L.boostDur(S) / 60)} phút!`);
+  save();
 }
 function slowUi() {
   R.rateV = L.rate(S);
@@ -202,9 +248,31 @@ function slowUi() {
   const ready = L.tasksClaimable(S), canUpg = L.upgList(S).some(u => S.money >= u.cost);
   badge($('navTask'), ready || (L.canMove(S) ? '!' : 0));
   badge($('navUpg'), canUpg ? '!' : 0);
+  // tính năng mở dần: Kho báu, ô kim cương, nút tăng tốc chỉ hiện khi đã mở
+  const vaultOn = L.featureOn(S, 'vault');
+  $('navVault').hidden = !vaultOn;
+  $('hGemBox').hidden = !vaultOn && !S.gems;
+  $('boostBtn').hidden = !L.featureOn(S, 'boost');
+  badge($('navVault'), vaultOn && VAULT.some(v => { const c = L.vaultCost(S, v.id); return c != null && S.gems >= c; }) ? '!' : 0);
+  unlockQueue();
   goal();
   labelText();
   tickSheet();
+}
+const FEAT_ICON = { boost: 'bolt', hot: 'flame', vip: 'crown', vault: 'vault' };
+// Tính năng vừa mở: hiện bảng ăn mừng khi không có bảng nào khác đang mở, từng cái một, có nút dùng thử ngay.
+function unlockQueue() {
+  if (!R.bootDone || modalOpen() || R.sheet || R.paused) return;
+  const k = L.newFeatures(S)[0];
+  if (!k) return;
+  const f = FEATURES[k];
+  L.markSeen(S, k);
+  save();
+  const go = k === 'boost' ? ['Tăng tốc ngay', doBoost, 1] : k === 'vault' ? ['Mở Kho báu', () => openSheet('vault'), 1] : ['Tuyệt!', () => {}, 1];
+  modal(`<div class="wel-hero feat">${ICON[FEAT_ICON[k]]}</div><h2>Mở khoá: ${esc(f.n)}</h2><p>${esc(f.d)}</p>`, k === 'boost' || k === 'vault' ? [go, ['Để sau', () => {}]] : [go], 'welcome feat');
+  sfx.unlock();
+  haptic('reward');
+  domBurst(innerWidth / 2, innerHeight * 0.4, 30);
 }
 function badge(el, v) {
   const b = el.querySelector('.bdg'), s = v ? String(v) : '';
@@ -244,20 +312,50 @@ function closeSheet() {
 $('sheet').addEventListener('pointerdown', e => { if (e.target === $('sheet')) closeSheet(); });
 const head = (ic, title, sub, extra = '') => `<div class="sh-h"><span class="sh-ic">${ic}</span><div class="sh-t"><h3>${title}</h3><small>${sub}</small></div>${extra}<button class="x" data-close aria-label="Đóng">✕</button></div>`;
 // Khoá của bảng: đổi thì dựng lại, không đổi thì chỉ cập nhật số (để không phá nút đang giữ).
+const VAULT_ICON = { profit: 'profit', walk: 'walk', prep: 'prep', spawn: 'spawn', offline: 'offline', boost: 'bolt', vip: 'crown', start: 'start' };
+function sheetVault() {
+  const rows = VAULT.map(v => {
+    const lv = L.vaultLv(S, v.id), c = L.vaultCost(S, v.id);
+    const pips = Array.from({ length: v.max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
+    const right = c == null ? '<span class="own">Tối đa</span>' : `<button class="pri buyv${S.gems < c ? ' dis' : ''}" data-v="${v.id}" data-quiet><i class="gi">${ICON.gem}</i>${c}</button>`;
+    return `<div class="row"><i class="ric">${ICON[VAULT_ICON[v.id]]}</i><div class="nm"><b>${esc(v.n)}</b><small>${esc(v.d)}</small><span class="pips">${pips}</span></div>${right}</div>`;
+  }).join('');
+  return head(ICON.vault, 'Kho báu', `Buff vĩnh viễn cho cả chuỗi quán · bạn có <b>${S.gems}</b> <i class="gi">${ICON.gem}</i>`) +
+    `<p class="muted small">Kiếm kim cương khi trạm qua mốc cấp, nhận thưởng nhiệm vụ, phục vụ khách VIP và chuyển chi nhánh.</p><div class="list">${rows}</div>`;
+}
+function bindVault() {
+  $('sheetCard').querySelectorAll('[data-v]').forEach(b => {
+    b.onclick = () => {
+      const v = VAULT.find(x => x.id === b.dataset.v), c = L.vaultCost(S, v.id);
+      if (c == null) return;
+      if (S.gems < c) return deny(`Thiếu ${c - S.gems} kim cương. Nâng trạm qua mốc cấp, làm nhiệm vụ hay phục vụ khách VIP để kiếm thêm`);
+      if (!L.buyVault(S, v.id)) return;
+      const [x, y] = centerOf(b);
+      sfx.unlock();
+      haptic('reward');
+      domBurst(x, y, 22);
+      floatText(x, y - 20, '−' + c + ' ' + ICON.gem, 'neg');
+      toast(`${esc(v.n)} lên cấp ${L.vaultLv(S, v.id)}!`);
+      save();
+      renderSheet();
+    };
+  });
+}
 function sheetKey() {
   const s = R.sheet;
   if (!s) return '';
   if (s.kind === 'station') { const n = L.nextLocked(S); return `st|${s.id}|${L.lvOf(S, s.id) > 0}|${n && n.id}`; }
   if (s.kind === 'upg') return 'upg|' + Object.keys(S.upg).join();
+  if (s.kind === 'vault') return 'vault|' + JSON.stringify(S.vault) + '|' + S.gems;
   if (s.kind === 'tasks') return 'tasks|' + L.tasks(S).map(t => +t.done + +t.claimed * 2).join('') + L.canMove(S);
   return 'shop|' + S.shopName;
 }
 function renderSheet() {
   const s = R.sheet, card = $('sheetCard');
   card.className = 'sheet-card ' + s.kind;
-  card.innerHTML = ({ station: sheetStation, upg: sheetUpg, tasks: sheetTasks, shop: sheetShop })[s.kind]();
+  card.innerHTML = ({ station: sheetStation, upg: sheetUpg, tasks: sheetTasks, shop: sheetShop, vault: sheetVault })[s.kind]();
   card.querySelectorAll('[data-close]').forEach(b => { b.onclick = closeSheet; });
-  ({ station: bindStation, upg: bindUpg, tasks: bindTasks, shop: bindShop })[s.kind]();
+  ({ station: bindStation, upg: bindUpg, tasks: bindTasks, shop: bindShop, vault: bindVault })[s.kind]();
   R.sheetKey = sheetKey();
 }
 function tickSheet() {
@@ -355,7 +453,8 @@ function milestone(id, lv) {
   scene.cheerAll();
   const st = $('stStars');
   if (st) { const [x, y] = centerOf(st); domBurst(x, y, 22); punchEl(st); }
-  toast(`<b>${esc(d.n)}</b> lên cấp ${lv}: tiền mỗi ly ×2!`);
+  toast(`<b>${esc(d.n)}</b> lên cấp ${lv}: tiền mỗi ly ×2, +${CFG.gemsPerStar} ${ICON.gem}`);
+  if (st) { const [x, y] = centerOf(st); coinFly(x, y, CFG.gemsPerStar, false, true); }
 }
 function doUnlock(id, btn) {
   const d = L.stDef(S, id);
@@ -407,7 +506,7 @@ function sheetTasks() {
   const ts = L.tasks(S), got = ts.filter(t => t.claimed).length, next = SHOPS[S.shop + 1];
   const rows = ts.map((t, i) => {
     const state = t.claimed ? ' got' : t.done ? ' ready' : '';
-    const right = t.claimed ? '<em>Đã nhận</em>' : t.done ? `<button class="pri claim" data-claim="${t.i}" data-quiet>Nhận +${fmt(t.r)}</button>` : `<em class="rw">${t.need > 1 ? `${t.cur}/${t.need} · ` : ''}+${fmt(t.r)}</em>`;
+    const right = t.claimed ? '<em>Đã nhận</em>' : t.done ? `<button class="pri claim" data-claim="${t.i}" data-quiet>Nhận +${fmt(t.r)} <i class="gi">${ICON.gem}</i></button>` : `<em class="rw">${t.need > 1 ? `${t.cur}/${t.need} · ` : ''}+${fmt(t.r)} <i class="gi">${ICON.gem}</i></em>`;
     return `<div class="trow${state}" style="--i:${i}"><i class="tic">${t.done ? ICON.check : '<b></b>'}</i><span>${esc(L.taskText(S, t))}</span>${right}</div>`;
   }).join('');
   const foot = L.canMove(S) ? `<button class="big go breathe" id="moveBtn">Chuyển sang ${esc(next.n)} ➜</button>`
@@ -427,6 +526,7 @@ function bindTasks() {
       domBurst(x, y, 18);
       floatText(x, y - 10, '+' + fmt(v), 'money');
       coinFly(x, y, 5);
+      setTimeout(() => coinFly(x, y, CFG.gemsPerTask, false, true), 250);
       L.checkTuts(S);
       save();
       renderSheet();
@@ -439,7 +539,7 @@ function bindTasks() {
 function askMove() {
   const next = SHOPS[S.shop + 1];
   modal(`<div class="wel-hero">${ICON.shop}</div><h2>Chuyển sang ${esc(next.n)}?</h2><p>${esc(next.d)}</p>
-    <p class="muted small">Gấu Nâu đi cùng bạn, các bạn gấu khác thuê lại ở chi nhánh mới. Tiền, trạm và nâng cấp ở ${esc(shop().n)} để lại. Bạn bắt đầu chi nhánh mới với <b>${fmt(next.start)}</b> và 5 món mới.</p>`,
+    <p class="muted small">Gấu Nâu đi cùng bạn, các bạn gấu khác thuê lại ở chi nhánh mới. Kim cương và Kho báu đi theo bạn, được tặng thêm <b>${CFG.gemsMove}</b> kim cương. Tiền, trạm và nâng cấp ở ${esc(shop().n)} để lại. Bạn bắt đầu chi nhánh mới với <b>${fmt(next.start * (1 + L.vaultLv(S, 'start') * VAULT.find(v => v.id === 'start').per))}</b> và 5 món mới.</p>`,
   [['Ở lại thêm', () => {}], [`Chuyển sang ${esc(next.n)}`, doMove, 1]], 'welcome');
 }
 function doMove() {
@@ -583,7 +683,7 @@ function settings() {
     <div class="set"><button data-tap data-o="music"><span>Nhạc nền</span><b class="${musicOn() ? 'on' : ''}">${onOff(musicOn())}</b></button>
     <button data-tap data-o="sound"><span>Âm thanh hiệu ứng</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
     <button data-tap data-o="haptic"><span>Rung khi chạm</span><b class="${opts.haptic ? 'on' : ''}">${onOff(opts.haptic)}</b></button></div>
-    <p class="muted small">Nhạc nền và âm thanh hiệu ứng bật tắt riêng. Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt, tính tối đa ${CFG.offlineCapH} giờ. Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
+    <p class="muted small">Nhạc nền và âm thanh hiệu ứng bật tắt riêng. Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt, tính tối đa ${L.offlineCapH(S)} giờ (Kho báu có thể tăng thêm). Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
   [['Khôi phục bản tự lưu', () => restoreDlg(settings)],
     ['Chơi lại từ đầu', () => modal('<h2>Xoá quán và chơi lại?</h2><p>Mọi tiến trình sẽ mất, chỉ giữ tên quán.</p>', [['Huỷ', settings], ['Xoá và chơi lại', () => applyState(null, 'Đã mở quán mới'), 1]])],
     ['Xong', () => {}, 1]]);
@@ -685,12 +785,13 @@ function durText(s) {
 // since: mốc thời gian lần cuối quán còn chạy. Vắng dưới offlineMin giây thì bỏ qua.
 function offlineDlg(since, next = () => {}) {
   const secs = (Date.now() - since) / 1000;
+  if (since) L.tickBoost(S, secs);   // lúc vắng mặt đồng hồ tăng tốc vẫn chạy (hết tăng tốc, hồi xong)
   if (!since || secs < CFG.offlineMin) return next();
-  const g = Math.round(L.rate(S) * L.offlineSecs(secs));
+  const g = Math.round(L.offlineRate(S) * L.offlineSecs(S, secs));
   if (g <= 0) return next();
-  const capped = secs > CFG.offlineCapH * 3600;
+  const capped = secs > L.offlineCapH(S) * 3600;
   modal(`<div class="wel-hero">${ICON.clock}</div><h2>Quán vẫn bán khi bạn vắng</h2>
-    <p>Bạn vắng <b>${durText(secs)}</b>. Nhân viên vẫn pha và thu tiền${capped ? `, tính tối đa ${CFG.offlineCapH} giờ` : ''}.</p>
+    <p>Bạn vắng <b>${durText(secs)}</b>. Các bạn gấu vẫn pha và thu tiền${capped ? `, tính tối đa ${L.offlineCapH(S)} giờ` : ''}.</p>
     <div class="big-money" id="offAmt">+0</div>`, [[`Nhận ${fmt(g)}`, () => {
     S.money += g; S.earned += g; S.life.earned += g;
     save();
@@ -707,7 +808,7 @@ function offlineDlg(since, next = () => {}) {
 document.addEventListener('visibilitychange', () => {
   pauseAudio(document.hidden);
   if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); save(); Cloud.push(S); }
-  else if (R.hiddenAt) { const t = R.hiddenAt; R.hiddenAt = 0; if (!modalOpen()) offlineDlg(t); }
+  else if (R.hiddenAt) { const t = R.hiddenAt; R.hiddenAt = 0; if (!modalOpen()) offlineDlg(t); else L.tickBoost(S, (Date.now() - t) / 1000); }
 });
 window.addEventListener('pagehide', () => save());
 window.addEventListener('resize', () => { scene.resize(); });
@@ -811,6 +912,8 @@ function bootChecks() {
   steps.push(next => (S.ftue.welcomed ? next() : welcomeDlg(next)));
   // tiền lúc vắng mặt tính theo bản trên máy; nếu vừa lấy bản trên mây thì cloudSync đã tính rồi
   steps.push(next => (bootAt && !R.tookCloud ? offlineDlg(bootAt, next) : next()));
+  // xong các bảng lúc vào game thì mới cho bảng mở khoá tính năng hiện ra
+  steps.push(next => { R.bootDone = true; next(); });
   const run = () => { const f = steps.shift(); if (f) f(run); };
   run();
 }
@@ -886,6 +989,12 @@ export function boot() {
   $('navUpg').insertAdjacentHTML('afterbegin', ICON.arrowUp);
   $('navTask').insertAdjacentHTML('afterbegin', ICON.list);
   $('navShop').insertAdjacentHTML('afterbegin', ICON.shop);
+  $('navVault').insertAdjacentHTML('afterbegin', ICON.vault);
+  $('hGem').innerHTML = ICON.gem;
+  $('boostBtn').querySelector('.bb-ic').innerHTML = ICON.bolt;
+  $('boostBtn').onclick = doBoost;
+  $('navVault').onclick = () => (R.sheet && R.sheet.kind === 'vault' ? closeSheet() : openSheet('vault'));
+  $('hGemBox').onclick = () => { if (L.featureOn(S, 'vault')) openSheet('vault'); };
   $('setBtn').onclick = settings;
   $('navUpg').onclick = () => (R.sheet && R.sheet.kind === 'upg' ? closeSheet() : openSheet('upg'));
   $('navTask').onclick = () => (R.sheet && R.sheet.kind === 'tasks' ? closeSheet() : openSheet('tasks'));

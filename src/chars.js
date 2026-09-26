@@ -155,6 +155,17 @@ export function buildKid(look) {
   hr.rotation.x = -0.35;
   if (look.bun) part(sphere(0.1), hair, head, 0, 0.52, -0.14);
   else part(sphere(0.12), hair, head, 0.1, 0.46, 0.12, [1.2, 0.5, 0.8]);   // mái tóc lệch
+  if (look.vip) {
+    // khách VIP: vương miện vàng năm chóp có ngọc đỏ
+    const gold = new THREE.MeshStandardMaterial({ color: 0xffc83d, metalness: 0.6, roughness: 0.3, emissive: 0x7a5200, emissiveIntensity: 0.35 });
+    const crown = group(head, 0, 0.53, 0);
+    part(geo('crownBand', () => new THREE.CylinderGeometry(0.15, 0.16, 0.08, 20, 1, true)), gold, crown).material.side = THREE.DoubleSide;
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * Math.PI * 2, tip = part(geo('crownTip', () => new THREE.ConeGeometry(0.035, 0.09, 8)), gold, crown, Math.sin(a) * 0.15, 0.08, Math.cos(a) * 0.15);
+      tip.castShadow = false;
+    }
+    part(sphere(0.025), soft(0xe25b4a), crown, 0, 0.02, 0.16);
+  }
   P.face = buildFace(head, { eyeX: 0.095, eyeY: 0.25, eyeZ: 0.24, eyeR: 0.042, eye: 0x2b1d14, blushX: 0.16, blushY: 0.17, blushZ: 0.212, blushR: 0.048, mouthR: 0.022, mouthY: 0.15, mouthZ: 0.262 });
   return { g, P, kind: 'kid' };
 }

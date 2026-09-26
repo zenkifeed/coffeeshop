@@ -114,7 +114,7 @@ console.log('Mô phỏng khách và nhân viên');
 console.log('Ước lượng thu nhập so với mô phỏng');
 {
   const measure = S => {
-    const W = L.newWorld(S), rng = seeded(3);
+    const W = L.newWorld(S, { events: false }), rng = seeded(3);   // bỏ VIP, món hot: đo thu nhập nền
     for (let t = 0; t < 60; t += 0.1) L.step(S, W, 0.1, rng);
     const e0 = S.earned;
     for (let t = 0; t < 600; t += 0.1) L.step(S, W, 0.1, rng);
@@ -131,7 +131,7 @@ console.log('Ước lượng thu nhập so với mô phỏng');
     const real = measure(S), r = L.rate(S) / real;
     ok(r > 0.7 && r < 1.4, `${n}: ước lượng/thật = ${r.toFixed(2)} (trong 0,7–1,4)`);
   });
-  ok(L.offlineSecs(-5) === 0 && L.offlineSecs(99999) === CFG.offlineCapH * 3600, 'tiền vắng mặt tính tối đa ' + CFG.offlineCapH + ' giờ');
+  ok(L.offlineSecs(L.freshState(), -5) === 0 && L.offlineSecs(L.freshState(), 99999) === CFG.offlineCapH * 3600, 'tiền vắng mặt tính tối đa ' + CFG.offlineCapH + ' giờ');
 }
 
 console.log('Nhiệm vụ và chuyển quán');
@@ -153,6 +153,81 @@ console.log('Nhiệm vụ và chuyển quán');
   S.shop = SHOPS.length - 1;
   SHOPS[S.shop].tasks.forEach((t, i) => { S.claimed[i] = true; });
   ok(!L.canMove(S), 'quán cuối không chuyển tiếp được');
+}
+
+console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
+{
+  const { VAULT, VAULT_COST, FEATURES } = await import('../src/data.js');
+  ok(VAULT.every(v => v.max >= 1 && v.max <= VAULT_COST.length && v.per > 0), 'mọi buff Kho báu có số cấp tối đa và giá cho từng cấp');
+  ok(Object.values(FEATURES).every(f => f.n && f.d), 'mọi tính năng mở dần có tên và mô tả để hiện bảng mở khoá');
+  // nguồn kim cương
+  const S = L.freshState();
+  S.money = 1e12;
+  L.buyLevels(S, 'den', 9);
+  ok(S.gems === CFG.gemsPerStar, 'trạm qua mốc cấp 10 tặng kim cương');
+  S.ftue.welcomed = true;
+  const t0 = SHOPS[0].tasks[0]; L.buyLevels(S, t0.st, 1);
+  const g0 = S.gems; L.claimTask(S, 0);
+  ok(S.gems === g0 + CFG.gemsPerTask, 'nhận thưởng nhiệm vụ tặng kim cương');
+  // Kho báu
+  S.gems = 0;
+  ok(!L.buyVault(S, 'profit') && L.vaultLv(S, 'profit') === 0, 'thiếu kim cương thì không mua được buff');
+  S.gems = VAULT_COST[0] + VAULT_COST[1];
+  const p0 = L.profitOf(S, 'den');
+  ok(L.buyVault(S, 'profit') && L.buyVault(S, 'profit') && S.gems === 0, 'mua buff trừ đúng giá từng cấp');
+  ok(Math.abs(L.profitOf(S, 'den') / p0 - (1 + 2 * VAULT.find(v => v.id === 'profit').per)) < 1e-9, 'buff "Công thức bí truyền" nhân tiền mỗi ly');
+  S.gems = 1e6; while (L.buyVault(S, 'offline'));
+  ok(L.vaultLv(S, 'offline') === VAULT.find(v => v.id === 'offline').max && L.vaultCost(S, 'offline') == null, 'buff dừng ở cấp tối đa');
+  ok(L.offlineCapH(S) === CFG.offlineCapH + L.vaultLv(S, 'offline') && L.offlineSecs(S, 1e9) === L.offlineCapH(S) * 3600, '"Két sắt lớn" cộng giờ tính tiền lúc vắng mặt');
+  // tăng tốc
+  const B = L.freshState();
+  ok(!L.activateBoost(B), 'tăng tốc chưa mở ở đầu game thì không bấm được');
+  B.claimed = { 0: true, 1: true };
+  const r0 = L.profitOf(B, 'den');
+  ok(L.activateBoost(B) && L.boostState(B) === 'active' && L.profitOf(B, 'den') === r0 * CFG.boost.mul, 'bấm tăng tốc: tiền mỗi ly nhân đôi');
+  ok(!L.activateBoost(B), 'đang tăng tốc thì không bấm chồng');
+  ok(Math.abs(L.offlineRate(B) - L.rate(B) / CFG.boost.mul) < 1e-6 * L.rate(B), 'tiền lúc vắng mặt không tính tăng tốc');
+  ok(L.tickBoost(B, CFG.boost.dur + 1) === 'end' && L.boostState(B) === 'cd' && Math.abs(B.boost.cd - (CFG.boost.cd - 1)) < 1e-9, 'hết giờ tăng tốc thì vào thời gian hồi');
+  ok(L.tickBoost(B, CFG.boost.cd) === 'ready' && L.boostState(B) === 'ready', 'hồi xong thì bấm lại được');
+  // khách VIP và món hot trong mô phỏng
+  const V = L.freshState(); V.money = 1e15;
+  SHOPS[0].stations.forEach(s => { if (!L.lvOf(V, s.id)) L.unlock(V, s.id); });
+  V.claimed = Object.fromEntries(SHOPS[0].tasks.map((_, i) => [i, true]));
+  V.claimed = Object.fromEntries(Object.entries(V.claimed).slice(0, 6));
+  ['staff2', 'staff3', 'staff4', 'queue4', 'queue5'].forEach(id => L.buyUpgrade(V, id));
+  const W = L.newWorld(V), rng = seeded(21);
+  let vips = 0, vipOk = true, hots = 0, hotServe = 0, gems = V.gems;
+  for (let t = 0; t < 900; t += 0.1) {
+    for (const e of L.step(V, W, 0.1, rng)) {
+      if (e.k === 'serve' && e.vip) { vips++; if (e.amt !== L.profitOf(V, e.st) * CFG.vip.mul * (e.hot ? CFG.hot.mul : 1) || e.gems !== CFG.vip.gems) vipOk = false; }
+      if (e.k === 'hot') hots++;
+      if (e.k === 'serve' && e.hot) hotServe++;
+    }
+  }
+  ok(vips >= 4 && vips <= 12, `15 phút có khoảng 6–10 khách VIP (đếm được ${vips})`);
+  ok(vipOk && V.gems === gems + vips * CFG.vip.gems, 'khách VIP trả đúng gấp nhiều lần và tặng kim cương');
+  ok(hots >= 5 && hotServe > 0, `món hot xuất hiện định kỳ và có khách gọi (${hots} lượt, ${hotServe} ly)`);
+  const N = L.freshState(), WN = L.newWorld(N), rn = seeded(5);
+  let early = 0;
+  for (let t = 0; t < 400; t += 0.1) for (const e of L.step(N, WN, 0.1, rn)) if ((e.k === 'serve' && e.vip) || e.k === 'hot') early++;
+  ok(early === 0, 'người mới (chưa làm nhiệm vụ, một trạm) chưa gặp khách VIP hay món hot');
+  // tính năng mở dần
+  const F = L.freshState();
+  F.ftue.welcomed = true;
+  ok(L.newFeatures(F).length === 0, 'đầu game chưa mở tính năng phụ nào');
+  F.claimed = { 0: true, 1: true };
+  ok(L.newFeatures(F).includes('boost') && !L.newFeatures(F).includes('vip'), 'nhận 2 thưởng thì mở tăng tốc, chưa mở khách VIP');
+  L.markSeen(F, 'boost');
+  ok(!L.newFeatures(F).includes('boost'), 'đã xem bảng mở khoá thì không hiện lại');
+  F.gems = 1;
+  ok(L.newFeatures(F).includes('vault'), 'có kim cương đầu tiên thì mở Kho báu');
+  // chuyển chi nhánh: kim cương, Kho báu, tăng tốc giữ lại; "Vốn khởi nghiệp" tăng vốn
+  const M = L.freshState(); M.gems = 7; M.vault = { start: 2, profit: 1 };
+  SHOPS[0].tasks.forEach((_, i) => { M.claimed[i] = true; });
+  L.moveShop(M);
+  ok(M.gems === 7 + CFG.gemsMove && M.vault.profit === 1 && M.money === SHOPS[1].start * (1 + 2 * VAULT.find(v => v.id === 'start').per), 'chuyển chi nhánh: giữ kim cương và Kho báu, tặng thêm kim cương, "Vốn khởi nghiệp" tăng vốn');
+  ok(L.featureOn(M, 'vip') && L.featureOn(M, 'boost'), 'từ chi nhánh thứ hai mọi tính năng đã mở');
+  ok(L.fmt(3.4e15) === '3,4Qa' && L.fmt(2e18) === '2Qi', 'tiền rất lớn ở chi nhánh cuối hiện Qa, Qi');
 }
 
 console.log('Hướng dẫn');
@@ -327,9 +402,9 @@ console.log('Icon và manifest (thêm vào màn hình chính)');
   ok(html.includes('rel="manifest" href="manifest.webmanifest"') && html.includes('apple-mobile-web-app-title'), 'index.html gắn manifest và tên hiện trên màn hình chính iPhone');
 }
 
-console.log('Mô phỏng cân bằng ba quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
+console.log('Mô phỏng cân bằng cả chuỗi quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
 {
-  const BAND = [[10, 35], [10, 40], [10, 45]];
+  const BAND = SHOPS.map(() => [10, 30]);
   const run = playAll(11);
   run.forEach((r, i) => {
     const first = r.marks[0] / 60, min = r.t / 60;

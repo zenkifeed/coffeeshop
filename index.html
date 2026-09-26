@@ -24,6 +24,7 @@
 <header id="hud">
   <button id="setBtn" class="icb ghosty" aria-label="Cài đặt"></button>
   <div class="h-shop"><b id="hShop">Quán Cà Phê Nhỏ</b><small id="hLoc"></small></div>
+  <div class="h-g" id="hGemBox" hidden><i id="hGem"></i><span id="hGems">0</span></div>
   <div class="h-m" id="hMoneyBox"><i id="hCoin"></i><div><span id="hMoney">0</span><small id="hRate"></small></div></div>
 </header>
 <button id="goal" hidden></button>
@@ -31,9 +32,11 @@
 <div id="bubbles"></div>
 <nav id="nav">
   <button id="navUpg"><span>Nâng cấp</span><b class="bdg" hidden></b></button>
+  <button id="navVault" hidden><span>Kho báu</span><b class="bdg" hidden></b></button>
   <button id="navTask" class="mid"><span>Nhiệm vụ</span><b class="bdg" hidden></b></button>
   <button id="navShop"><span>Quán</span><b class="bdg" hidden></b></button>
 </nav>
+<button id="boostBtn" hidden aria-label="Tăng tốc"><i class="bb-ring"></i><i class="bb-ic"></i><b id="boostTx">×2</b></button>
 <div id="sheet" hidden><div class="sheet-card" id="sheetCard"></div></div>
 <div id="toasts"></div>
 <div id="flash"></div>

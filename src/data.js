@@ -12,7 +12,36 @@ export const CFG = {
   offlineCapH: 2,            // tiền lúc vắng mặt tính tối đa 2 giờ
   offlineMin: 60,            // vắng dưới 60 giây thì không hiện bảng tiền vắng mặt
   backupEvery: 300,          // giây chơi giữa hai bản dự phòng
+  // kim cương: tiền giữ qua mọi chi nhánh, dùng ở Kho báu
+  gemsPerStar: 1,            // mỗi mốc cấp của trạm
+  gemsPerTask: 1,            // mỗi lần nhận thưởng nhiệm vụ
+  gemsMove: 5,               // mỗi lần chuyển sang chi nhánh mới
+  boost: { mul: 2, dur: 180, cd: 420 },                           // tăng tốc: tiền ×2 trong 3 phút, hồi 7 phút
+  vip: { every: [90, 150], mul: 5, gems: 1 },                     // khách VIP: khoảng 1,5–2,5 phút một người, trả gấp 5
+  hot: { every: [80, 140], dur: 45, mul: 2, share: 0.5 },         // món hot: 45 giây, nửa số khách gọi món này
 };
+
+// Tính năng mở dần theo tiến độ (skill liveops-retention): người mới chỉ thấy vòng chơi chính.
+// tasks = số nhiệm vụ đã nhận ở chi nhánh đầu, stations = số trạm đang mở; từ chi nhánh thứ hai mọi thứ đã mở.
+export const FEATURES = {
+  boost: { n: 'Tăng tốc ×2', d: 'Bấm nút tăng tốc: mọi món bán gấp đôi trong 3 phút, miễn phí.', tasks: 2 },
+  hot:   { n: 'Món hot', d: 'Thỉnh thoảng một món thành món hot: khách gọi nhiều hơn và trả gấp đôi.', stations: 2 },
+  vip:   { n: 'Khách VIP', d: 'Khách đội vương miện thỉnh thoảng ghé quán, trả gấp 5 lần và tặng kim cương.', tasks: 5 },
+  vault: { n: 'Kho báu', d: 'Dùng kim cương mua buff vĩnh viễn, giữ qua mọi chi nhánh.', gems: 1 },
+};
+
+// Kho báu: buff vĩnh viễn mua bằng kim cương, giữ qua mọi chi nhánh. per = tác dụng mỗi cấp.
+export const VAULT = [
+  { id: 'profit',  n: 'Công thức bí truyền', d: 'Mọi món bán thêm 10% mỗi cấp',                  max: 5, per: 0.1 },
+  { id: 'walk',    n: 'Giày êm cho gấu',     d: 'Gấu đi nhanh hơn 10% mỗi cấp',                   max: 5, per: 0.1 },
+  { id: 'prep',    n: 'Tay nghề lão luyện',  d: 'Pha nhanh hơn 10% mỗi cấp',                      max: 5, per: 0.1 },
+  { id: 'spawn',   n: 'Khách quen',          d: 'Khách tới đông hơn 10% mỗi cấp',                 max: 5, per: 0.1 },
+  { id: 'offline', n: 'Két sắt lớn',         d: 'Tiền lúc vắng mặt tính thêm 1 giờ mỗi cấp',      max: 4, per: 1 },
+  { id: 'boost',   n: 'Cà phê đậm đặc',      d: 'Tăng tốc kéo dài thêm 1 phút mỗi cấp',           max: 3, per: 60 },
+  { id: 'vip',     n: 'Thẻ thành viên',      d: 'Khách VIP ghé thường hơn 25% mỗi cấp',           max: 3, per: 0.25 },
+  { id: 'start',   n: 'Vốn khởi nghiệp',     d: 'Chi nhánh mới bắt đầu với thêm 50% vốn mỗi cấp', max: 3, per: 0.5 },
+];
+export const VAULT_COST = [5, 10, 20, 40, 80];   // kim cương cho cấp 1, 2, 3…
 
 // Bố cục quán tính bằng mét, dùng chung cho mô phỏng (logic.js) và cảnh 3D (scene.js). Máy quay ở phía +z nhìn vào:
 // khách đứng gần máy quay (z dương), quầy đưa ly ở giữa, gấu đứng sau quầy mặt hướng ra khách,
@@ -38,7 +67,7 @@ export const BEARS = [
   { id: 'honey', n: 'Gấu Mật',  d: 'Cài lá trên đầu, lúc nào cũng tươi cười' },
 ];
 
-// Ba quán nối nhau. Mỗi quán: 5 trạm (mỗi trạm một món), danh sách nâng cấp mua một lần và danh sách
+// Năm chi nhánh nối nhau. Mỗi chi nhánh: 5 trạm (mỗi trạm một món), danh sách nâng cấp mua một lần và danh sách
 // nhiệm vụ. Nhận hết thưởng nhiệm vụ thì chuyển sang quán kế tiếp; tiền và trạm ở quán cũ để lại.
 // Trạm: price = tiền một ly ở cấp 1, time = giây pha, unlock = giá mở, cost = giá lên cấp 2.
 // Nâng cấp fx: staff (+người), walk (×tốc độ đi), prep (×tốc độ pha), spawn (×khách tới), queue (+chỗ chờ),
@@ -75,12 +104,14 @@ export const SHOPS = [
       { k: 'unlock', st: 'sua',          r: 600 },
       { k: 'level', st: 'sua', v: 10,    r: 1500 },
       { k: 'upg', id: 'sign',            r: 2000 },
+      { k: 'served', v: 120,             r: 3000 },
       { k: 'unlock', st: 'bacxiu',       r: 5000 },
       { k: 'level', st: 'den', v: 25,    r: 10000 },
       { k: 'upg', id: 'staff3',          r: 20000 },
       { k: 'unlock', st: 'trada',        r: 40000 },
       { k: 'level', st: 'bacxiu', v: 25, r: 1e5 },
       { k: 'unlock', st: 'ame',          r: 3e5 },
+      { k: 'served', v: 400,             r: 5e5 },
     ],
   },
   {
@@ -112,6 +143,7 @@ export const SHOPS = [
       { k: 'unlock', st: 'muoi',           r: 20000 },
       { k: 'level', st: 'latte', v: 25,    r: 50000 },
       { k: 'upg', id: 'sign',              r: 1e5 },
+      { k: 'served', v: 150,               r: 1.5e5 },
       { k: 'unlock', st: 'tradao',         r: 2.5e5 },
       { k: 'level', st: 'muoi', v: 25,     r: 6e5 },
       { k: 'upg', id: 'staff3',            r: 1e6 },
@@ -120,6 +152,7 @@ export const SHOPS = [
       { k: 'upg', id: 'grind',             r: 1e7 },
       { k: 'unlock', st: 'caramel',        r: 3e7 },
       { k: 'level', st: 'sinhto', v: 25,   r: 1e8 },
+      { k: 'served', v: 380,               r: 1.5e8 },
     ],
   },
   {
@@ -151,6 +184,7 @@ export const SHOPS = [
       { k: 'unlock', st: 'cotdua',         r: 1e6 },
       { k: 'level', st: 'trung', v: 25,    r: 2.5e6 },
       { k: 'upg', id: 'sign',              r: 5e6 },
+      { k: 'served', v: 180,               r: 8e6 },
       { k: 'unlock', st: 'coldbrew',       r: 1.2e7 },
       { k: 'level', st: 'cotdua', v: 25,   r: 3e7 },
       { k: 'upg', id: 'staff3',            r: 5e7 },
@@ -160,6 +194,93 @@ export const SHOPS = [
       { k: 'unlock', st: 'mocha',          r: 1.5e9 },
       { k: 'level', st: 'capu', v: 25,     r: 5e9 },
       { k: 'level', st: 'trung', v: 50,    r: 1e10 },
+      { k: 'served', v: 450,               r: 1.5e10 },
+    ],
+  },
+  {
+    id: 'rooftop', n: 'Rooftop Sài Gòn', d: 'Sân thượng lúc hoàng hôn, dây đèn lấp lánh, nhìn ra cả thành phố.',
+    start: 7.5e6, gap: 2.1,
+    // sân thượng ngoài trời: dựng cảnh riêng (rooftop.js), trời hoàng hôn, lan can kính, nhà cao tầng phía xa
+    theme: { style: 'rooftop', floor: 0xc9a27e, plank: 0xb38b66, wall: 0xffffff, wainscot: 0xffb3c1, rug: 0xa0c4ff, chair: 0xffd166, sky: 0xf7c4b0, apron: 0x9b6bd1, flags: [0xffd166, 0xff8fa3, 0xa0c4ff, 0xffffff] },
+    stations: [
+      { id: 'tonic',    n: 'Espresso tonic',     c: '#c98a3a', ice: true,  prop: 'espresso', price: 5e5,   time: 3.2, unlock: 0,       cost: 2e6 },
+      { id: 'matcha',   n: 'Matcha latte',       c: '#8fbf6a', ice: true,  prop: 'pitcher',  price: 3e6,   time: 3.2, unlock: 2.4e8,   cost: 3e7 },
+      { id: 'duaxay',   n: 'Cà phê dừa đá xay',  c: '#efe3cf', ice: true,  prop: 'icebin',   price: 1.8e7, time: 3.4, unlock: 1.45e9,  cost: 1.8e8 },
+      { id: 'camsa',    n: 'Cold brew cam sả',   c: '#e8912f', ice: true,  prop: 'kettle',   price: 1.1e8, time: 3.8, unlock: 8.5e9,   cost: 1.1e9 },
+      { id: 'affogato', n: 'Affogato kem vani',  c: '#f3e2b8', ice: false, prop: 'cream',    price: 6.5e8, time: 4.2, unlock: 5e10,    cost: 6.5e9 },
+    ],
+    upgrades: [
+      { id: 'staff2', n: 'Thuê Gấu Trúc',            d: 'Thêm một bạn gấu pha chế',          cost: 1.5e7,   fx: 'staff' },
+      { id: 'sign',   n: 'Dây đèn lấp lánh',         d: 'Khách tới nhiều hơn 30%',           cost: 1.8e8,   fx: 'spawn', v: 1.3 },
+      { id: 'shoes',  n: 'Thang máy riêng',          d: 'Nhân viên đi nhanh hơn 30%',        cost: 4.5e8,   fx: 'walk', v: 1.3 },
+      { id: 'staff3', n: 'Thuê Gấu Trắng',           d: 'Thêm một bạn gấu pha chế',          cost: 1.2e9,   fx: 'staff' },
+      { id: 'queue4', n: 'Ghế lười ngắm cảnh',       d: 'Thêm một chỗ khách chờ ở quầy',     cost: 2.25e9,  fx: 'queue' },
+      { id: 'tonicw', n: 'Nước tonic nhập khẩu',     d: 'Espresso tonic bán gấp 3',          cost: 7.5e9,   fx: 'profit', st: 'tonic', v: 3 },
+      { id: 'grind',  n: 'Máy pha đôi chuyên nghiệp', d: 'Pha nhanh hơn 30%',                cost: 2.25e10, fx: 'prep', v: 1.3 },
+      { id: 'staff4', n: 'Thuê Gấu Mật',             d: 'Thêm một bạn gấu pha chế',          cost: 6e10,    fx: 'staff' },
+      { id: 'queue5', n: 'Mở thêm góc ngắm cảnh',    d: 'Thêm một chỗ khách chờ ở quầy',     cost: 1.5e11,  fx: 'queue' },
+      { id: 'dj',     n: 'DJ chơi nhạc hoàng hôn',   d: 'Mọi món bán gấp 2',                 cost: 4.5e11,  fx: 'profit', st: 'all', v: 2 },
+    ],
+    tasks: [
+      { k: 'level', st: 'tonic', v: 10,     r: 7.5e6 },
+      { k: 'upg', id: 'staff2',             r: 1.5e7 },
+      { k: 'unlock', st: 'matcha',          r: 5e7 },
+      { k: 'level', st: 'tonic', v: 25,     r: 1.25e8 },
+      { k: 'upg', id: 'sign',               r: 2.5e8 },
+      { k: 'served', v: 200,                r: 4e8 },
+      { k: 'unlock', st: 'duaxay',          r: 6e8 },
+      { k: 'level', st: 'matcha', v: 25,    r: 1.5e9 },
+      { k: 'upg', id: 'staff3',             r: 2.5e9 },
+      { k: 'unlock', st: 'camsa',           r: 6e9 },
+      { k: 'level', st: 'duaxay', v: 25,    r: 1.5e10 },
+      { k: 'upg', id: 'grind',              r: 2.5e10 },
+      { k: 'unlock', st: 'affogato',        r: 7.5e10 },
+      { k: 'level', st: 'camsa', v: 25,     r: 2.5e11 },
+      { k: 'level', st: 'tonic', v: 50,     r: 5e11 },
+      { k: 'served', v: 450,                r: 7.5e11 },
+    ],
+  },
+  {
+    id: 'dalat', n: 'Đồi Thông Đà Lạt', d: 'Nhà gỗ trên đồi thông, lò sưởi ấm, khách ngồi nghe mưa uống cacao nóng.',
+    start: 3.75e8, gap: 2.0,
+    // nhà gỗ trong nhà: phòng thường cộng thêm lò sưởi, cây thông trong chậu, vách gỗ (cabin trong scene.js)
+    theme: { style: 'cabin', floor: 0xb88a63, plank: 0xa47550, wall: 0xf0e2cf, wainscot: 0x8a6446, rug: 0xd9534f, chair: 0x6fb57a, sky: 0xdfe8ef, apron: 0x4a7c59, flags: [0xd9534f, 0xfff1e0, 0x6fb57a, 0xffd166] },
+    stations: [
+      { id: 'cacao',   n: 'Cacao nóng',            c: '#6b3a24', ice: false, prop: 'pitcher',  price: 2.5e7,  time: 3.2, unlock: 0,        cost: 1e8 },
+      { id: 'dauna',   n: 'Sữa đậu nành nóng',     c: '#efe0b8', ice: false, prop: 'kettle',   price: 1.5e8,  time: 3.2, unlock: 1.2e10,   cost: 1.5e9 },
+      { id: 'atiso',   n: 'Trà atiso',             c: '#7a8a3a', ice: false, prop: 'syrup',    price: 9e8,    time: 3.4, unlock: 7.25e10,  cost: 9e9 },
+      { id: 'caudat',  n: 'Cà phê phin Cầu Đất',   c: '#3b2314', ice: false, prop: 'espresso', price: 5.5e9,  time: 3.8, unlock: 4.25e11,  cost: 5.5e10 },
+      { id: 'dautam',  n: 'Sữa chua dâu tằm',      c: '#b0306a', ice: true,  prop: 'can',      price: 3.25e10, time: 4.2, unlock: 2.5e12,  cost: 3.25e11 },
+    ],
+    upgrades: [
+      { id: 'staff2', n: 'Thuê Gấu Trúc',            d: 'Thêm một bạn gấu pha chế',          cost: 7.5e8,    fx: 'staff' },
+      { id: 'sign',   n: 'Bảng gỗ khắc tay',         d: 'Khách tới nhiều hơn 30%',           cost: 9e9,      fx: 'spawn', v: 1.3 },
+      { id: 'shoes',  n: 'Lối đi lát đá',            d: 'Nhân viên đi nhanh hơn 30%',        cost: 2.25e10,  fx: 'walk', v: 1.3 },
+      { id: 'staff3', n: 'Thuê Gấu Trắng',           d: 'Thêm một bạn gấu pha chế',          cost: 6e10,     fx: 'staff' },
+      { id: 'queue4', n: 'Ghế bành bên lò sưởi',     d: 'Thêm một chỗ khách chờ ở quầy',     cost: 1.125e11, fx: 'queue' },
+      { id: 'cacaow', n: 'Cacao nguyên chất',        d: 'Cacao nóng bán gấp 3',              cost: 3.75e11,  fx: 'profit', st: 'cacao', v: 3 },
+      { id: 'grind',  n: 'Máy xay tay gỗ thông',     d: 'Pha nhanh hơn 30%',                 cost: 1.125e12, fx: 'prep', v: 1.3 },
+      { id: 'staff4', n: 'Thuê Gấu Mật',             d: 'Thêm một bạn gấu pha chế',          cost: 3e12,     fx: 'staff' },
+      { id: 'queue5', n: 'Mở gác xép',               d: 'Thêm một chỗ khách chờ ở quầy',     cost: 7.5e12,   fx: 'queue' },
+      { id: 'mist',   n: 'Sương sớm lãng mạn',       d: 'Mọi món bán gấp 2',                 cost: 2.25e13,  fx: 'profit', st: 'all', v: 2 },
+    ],
+    tasks: [
+      { k: 'level', st: 'cacao', v: 10,     r: 3.75e8 },
+      { k: 'upg', id: 'staff2',             r: 7.5e8 },
+      { k: 'unlock', st: 'dauna',           r: 2.5e9 },
+      { k: 'level', st: 'cacao', v: 25,     r: 6.25e9 },
+      { k: 'upg', id: 'sign',               r: 1.25e10 },
+      { k: 'served', v: 220,                r: 2e10 },
+      { k: 'unlock', st: 'atiso',           r: 3e10 },
+      { k: 'level', st: 'dauna', v: 25,     r: 7.5e10 },
+      { k: 'upg', id: 'staff3',             r: 1.25e11 },
+      { k: 'unlock', st: 'caudat',          r: 3e11 },
+      { k: 'level', st: 'atiso', v: 25,     r: 7.5e11 },
+      { k: 'upg', id: 'grind',              r: 1.25e12 },
+      { k: 'unlock', st: 'dautam',          r: 3.75e12 },
+      { k: 'level', st: 'caudat', v: 25,    r: 1.25e13 },
+      { k: 'level', st: 'cacao', v: 50,     r: 2.5e13 },
+      { k: 'served', v: 450,                r: 3.75e13 },
     ],
   },
 ];

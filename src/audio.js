@@ -94,6 +94,16 @@ export const sfx = {
   },
   // "ting" khi xong một ly: mỗi trạm một nốt ngũ cung, nhiều trạm xong liền nhau thành giai điệu nhỏ
   ding: i => { const f = [1568, 1760, 2093, 2349, 2637][i % 5]; tone(jit(f, 0.01), 0.25, { type: 'triangle', vol: 0.045 }); tone(f * 2, 0.12, { vol: 0.012, delay: 0.02 }); },
+  // kim cương rơi vào túi: hai nốt cao trong trẻo
+  gem: () => { tone(jit(2093, 0.01), 0.12, { type: 'sine', vol: 0.09 }); tone(jit(3136, 0.01), 0.22, { type: 'sine', vol: 0.07, delay: 0.06 }); },
+  // bật tăng tốc: vút lên rồi hợp âm trưởng
+  boost: () => { noise(0.35, { freq: 500, q: 0.8, vol: 0.12, type: 'lowpass', slide: 6 }); [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, { type: 'square', vol: 0.06, delay: 0.12 + i * 0.05 })); },
+  // món hot: ba nốt giục giã
+  hot: () => [784, 988, 1175].forEach((f, i) => tone(jit(f, 0.01), 0.12, { type: 'triangle', vol: 0.1, delay: i * 0.07 })),
+  // khách VIP bước vào: chuông kép lấp lánh
+  vip: () => { [1319, 1760, 2637].forEach((f, i) => tone(f, 0.35, { type: 'triangle', vol: 0.08, delay: i * 0.08 })); tone(2637 * 1.5, 0.3, { vol: 0.03, delay: 0.3 }); },
+  // mở khoá tính năng
+  unlock: () => [523, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.12, delay: i * 0.07 })),
   // tiếng "bíp" dễ thương khi chạm vào gấu: hai nốt trượt lên
   boop: () => { tone(jit(620, 0.06), 0.09, { type: 'sine', vol: 0.18, slide: 1.6 }); tone(jit(990, 0.06), 0.1, { type: 'sine', vol: 0.12, slide: 1.4, delay: 0.08 }); },
   meh: () => tone(jit(392), 0.2, { type: 'triangle', vol: 0.14, slide: 0.85 }),

@@ -1,6 +1,6 @@
 # Quán Cà Phê Nhỏ
 
-Game quản lý chuỗi quán cà phê 3D phong cách dễ thương, chơi ngay trên trình duyệt. Khách tự tới, các bạn gấu nhân viên tự pha và bán, tiền tự vào két. Việc của bạn là nâng cấp máy pha, mở thêm món, thuê thêm gấu và mở rộng chuỗi quán. Tắt game thì quán vẫn bán, lần sau quay lại có tiền chờ sẵn.
+Game quản lý chuỗi quán cà phê 3D phong cách dễ thương, chơi ngay trên trình duyệt. Khách tự tới, các bạn gấu nhân viên tự pha và bán, tiền tự vào két. Việc của bạn là nâng cấp máy pha, mở thêm món, thuê thêm gấu và mở rộng chuỗi năm chi nhánh, từ quán vỉa hè đầu hẻm tới nhà gỗ trên đồi thông Đà Lạt. Tắt game thì quán vẫn bán, lần sau quay lại có tiền chờ sẵn.
 
 - **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
@@ -35,7 +35,25 @@ Bốn bạn gấu lần lượt vào ca: **Gấu Nâu** đội mũ đỏ, **Gấ
 
 ### Nhiệm vụ và chi nhánh mới
 
-Mỗi quán có một danh sách nhiệm vụ, xong thì bấm **Nhận** lấy thưởng. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới: **Góc Phố → Sân Vườn → Phố Cổ**. Góc Phố là quán vỉa hè với ghế nhựa, mái hiên và xe máy đỗ bên lề; các chi nhánh sau là quán trong nhà.
+Mỗi quán có một danh sách nhiệm vụ (nâng máy, mở món, thuê gấu, phục vụ đủ số khách…), xong thì bấm **Nhận** lấy thưởng. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới:
+
+1. **Góc Phố**: quán vỉa hè với ghế nhựa, mái hiên, xe máy đỗ bên lề.
+2. **Sân Vườn**: quán có giàn hoa, khách ngồi lâu.
+3. **Phố Cổ**: căn gác cũ, khách du lịch xếp hàng thử cà phê trứng.
+4. **Rooftop Sài Gòn**: sân thượng lúc hoàng hôn, dây đèn lấp lánh, nhìn ra cả thành phố.
+5. **Đồi Thông Đà Lạt**: nhà gỗ có lò sưởi, cacao nóng và trà atiso.
+
+### Kim cương và Kho báu
+
+Kim cương có được khi máy pha qua mốc cấp, khi nhận thưởng nhiệm vụ, khi phục vụ khách VIP và khi chuyển chi nhánh. Kim cương dùng ở **Kho báu** để mua buff vĩnh viễn cho cả chuỗi quán: bán được giá hơn, gấu đi và pha nhanh hơn, khách đông hơn, tiền lúc vắng mặt tính lâu hơn, tăng tốc lâu hơn, vốn chi nhánh mới nhiều hơn… Kim cương và Kho báu đi theo bạn sang mọi chi nhánh.
+
+### Tăng tốc, món hot, khách VIP
+
+- **Tăng tốc ×2**: nút tia sét ở góc phải. Bấm là mọi món bán gấp đôi trong vài phút, miễn phí; hết giờ thì chờ hồi là bấm lại được.
+- **Món hot**: thỉnh thoảng một món thành món hot (nhãn có ngọn lửa), khách đổ xô gọi món đó và trả gấp đôi trong một lúc.
+- **Khách VIP**: khách đội vương miện thỉnh thoảng ghé quán, trả gấp nhiều lần và tặng kim cương.
+
+Những tính năng này mở dần khi quán phát triển, mỗi lần mở có bảng giới thiệu.
 
 ### Khi vắng mặt
 

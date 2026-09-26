@@ -1,20 +1,20 @@
 // Logic thuần của game: không đụng DOM hay Three.js, để chạy được trong Node khi kiểm thử.
 // Gồm: tiền và cấp trạm, derived() gom mọi hệ số, mô phỏng khách và nhân viên theo từng bước thời gian,
 // ước lượng thu nhập mỗi giây (dùng cho tiền lúc vắng mặt), nhiệm vụ, chuyển quán và cờ hướng dẫn.
-import { CFG, LAYOUT, SHOPS } from './data.js';
+import { CFG, LAYOUT, SHOPS, FEATURES, VAULT, VAULT_COST } from './data.js';
 
 export const rnd = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 
 /* ---------- định dạng tiền vàng: số thường dưới 1.000, rồi K, M, B, T ---------- */
-// K = nghìn, M = triệu, B = tỷ, T = nghìn tỷ. Dưới 10 giữ một chữ số thập phân (thu nhập mỗi giây lúc đầu chỉ vài xu).
-const UNITS = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+// K = nghìn, M = triệu, B = tỷ, T = nghìn tỷ, Qa = triệu tỷ, Qi = tỷ tỷ. Dưới 10 giữ một chữ số thập phân (thu nhập mỗi giây lúc đầu chỉ vài xu).
+const UNITS = [[1e18, 'Qi'], [1e15, 'Qa'], [1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
 export function fmt(n) {
   if (!Number.isFinite(n)) return '∞';
   const sign = n < 0 ? '−' : '';
   n = Math.abs(n);
   if (n < 10) return sign + (Math.round(n * 10) / 10).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
   if (Math.round(n) < 1e3) return sign + Math.round(n);
-  if (n >= 1e15) return sign + n.toExponential(2).replace('.', ',').replace('e+', 'e');
+  if (n >= 1e21) return sign + n.toExponential(2).replace('.', ',').replace('e+', 'e');
   for (let i = UNITS.length - 1; i >= 0; i--) {
     const [u, s] = UNITS[i], next = UNITS[i - 1];
     const v = n / u, d = v >= 100 ? 0 : v >= 10 ? 1 : 2;
@@ -32,7 +32,9 @@ export const newFtue = () => ({ welcomed: false, skip: false, first: null, unloc
 // eco: phiên bản thang tiền. 1 = bản đầu (tiền tính theo đồng, vốn 60.000), 2 = tiền vàng (vốn 60).
 export const ECO = 2;
 export function freshState(shop = 0) {
-  const S = { v: 2, eco: ECO, shop, money: SHOPS[shop].start, ...freshShop(), shopName: '', life: { served: 0, earned: 0 }, ftue: newFtue(), at: 0 };
+  // gems, vault, boost, seen giữ qua mọi chi nhánh (moveShop chỉ làm mới phần freshShop)
+  const S = { v: 2, eco: ECO, shop, money: SHOPS[shop].start, ...freshShop(), shopName: '', life: { served: 0, earned: 0 }, ftue: newFtue(), at: 0,
+    gems: 0, vault: {}, boost: { left: 0, cd: 0 }, seen: {} };
   S.st[SHOPS[shop].stations[0].id] = 1;
   return S;
 }
@@ -55,9 +57,66 @@ export const nextMs = lv => CFG.milestones.find(m => m > lv) ?? null;
 export const prevMs = lv => [0, ...CFG.milestones].filter(m => m <= lv).pop();
 export const capAt = lv => 1 + CFG.capAt.filter(a => lv >= a).length;
 
-// Mọi hệ số hiệu lực tính lại từ đầu mỗi lần gọi: cấp gốc + nâng cấp đã mua. Không lưu đệm giá trị nào.
-export function derived(S) {
-  const sh = shopOf(S), d = { staff: CFG.staff, walk: CFG.walk, prep: 1, spawn: 1, queue: CFG.queue, profit: {} };
+/* ---------- Kho báu: buff vĩnh viễn mua bằng kim cương ---------- */
+export const vaultDef = id => VAULT.find(v => v.id === id);
+export const vaultLv = (S, id) => (S.vault && S.vault[id]) || 0;
+// Giá cấp kế tiếp (kim cương), null nếu đã tối đa.
+export function vaultCost(S, id) {
+  const v = vaultDef(id), lv = vaultLv(S, id);
+  return !v || lv >= v.max ? null : VAULT_COST[Math.min(lv, VAULT_COST.length - 1)];
+}
+export function buyVault(S, id) {
+  const c = vaultCost(S, id);
+  if (c == null || S.gems < c) return false;
+  S.gems -= c;
+  S.vault = { ...S.vault, [id]: vaultLv(S, id) + 1 };
+  return true;
+}
+const vf = (S, id) => vaultLv(S, id) * vaultDef(id).per;
+
+/* ---------- tính năng mở dần theo tiến độ ---------- */
+export function featureOn(S, key) {
+  const f = FEATURES[key];
+  if (!f) return false;
+  if (S.shop > 0) return true;
+  if (f.tasks != null && Object.keys(S.claimed).length < f.tasks) return false;
+  if (f.stations != null && shopOf(S).stations.filter(s => lvOf(S, s.id) > 0).length < f.stations) return false;
+  if (f.gems != null && S.gems < f.gems && !Object.keys(S.vault || {}).length) return false;
+  return true;
+}
+// Tính năng vừa mở mà người chơi chưa thấy bảng ăn mừng (game hiện từng cái, rồi đánh dấu đã xem).
+export const newFeatures = S => Object.keys(FEATURES).filter(k => featureOn(S, k) && !(S.seen && S.seen[k]));
+export function markSeen(S, key) { S.seen = { ...S.seen, [key]: true }; }
+
+/* ---------- tăng tốc: tiền ×2 một lúc, rồi hồi ---------- */
+export const boostDur = S => CFG.boost.dur + vf(S, 'boost');
+export const boostState = S => (S.boost.left > 0 ? 'active' : S.boost.cd > 0 ? 'cd' : 'ready');
+export function activateBoost(S) {
+  if (!featureOn(S, 'boost') || boostState(S) !== 'ready') return false;
+  S.boost = { left: boostDur(S), cd: 0 };
+  return true;
+}
+// Chạy đồng hồ tăng tốc thêm dt giây (cả lúc chơi lẫn lúc vắng mặt). Trả về 'end' | 'ready' | null.
+export function tickBoost(S, dt) {
+  const b = S.boost;
+  if (b.left > 0) {
+    b.left -= dt;
+    if (b.left > 0) return null;
+    const over = -b.left;
+    b.left = 0;
+    b.cd = Math.max(0, CFG.boost.cd - over);
+    return b.cd > 0 ? 'end' : 'ready';
+  }
+  if (b.cd > 0) { b.cd -= dt; if (b.cd <= 0) { b.cd = 0; return 'ready'; } }
+  return null;
+}
+
+// Mọi hệ số hiệu lực tính lại từ đầu mỗi lần gọi: cấp gốc + nâng cấp đã mua + Kho báu + tăng tốc.
+// Không lưu đệm giá trị nào. opts.noBoost: bỏ tăng tốc (ước lượng tiền lúc vắng mặt).
+export function derived(S, opts = {}) {
+  const sh = shopOf(S), d = { staff: CFG.staff, walk: CFG.walk * (1 + vf(S, 'walk')), prep: 1 + vf(S, 'prep'), spawn: 1 + vf(S, 'spawn'), queue: CFG.queue, profit: {} };
+  d.boost = !opts.noBoost && S.boost && S.boost.left > 0 ? CFG.boost.mul : 1;
+  d.all = (1 + vf(S, 'profit')) * d.boost;
   sh.stations.forEach(s => { d.profit[s.id] = 1; });
   sh.upgrades.forEach(u => {
     if (!S.upg[u.id]) return;
@@ -78,7 +137,7 @@ export function derived(S) {
 
 export function profitOf(S, id, lv = lvOf(S, id), D = derived(S)) {
   const s = stDef(S, id);
-  return lv > 0 ? s.price * lv * 2 ** starsAt(lv) * D.profit[id] : 0;
+  return lv > 0 ? s.price * lv * 2 ** starsAt(lv) * D.profit[id] * D.all : 0;
 }
 export const prepOf = (S, id, D = derived(S)) => stDef(S, id).time / D.prep;
 // Giá để lên từ cấp lv lên lv + 1.
@@ -108,7 +167,9 @@ export function buyLevels(S, id, mode) {
   S.money -= b.cost;
   S.st[id] += b.n;
   if (S.ftue.first === 'go') S.ftue.first = 'done';
-  return starsAt(S.st[id]) - before;
+  const gained = starsAt(S.st[id]) - before;
+  S.gems += gained * CFG.gemsPerStar;   // mỗi mốc cấp tặng kim cương
+  return gained;
 }
 
 // Trạm mở lần lượt theo thứ tự; chỉ trạm khoá đầu tiên là mua được.
@@ -134,11 +195,15 @@ export const upgList = S => shopOf(S).upgrades.filter(u => !S.upg[u.id]).sort((a
 
 /* ---------- mô phỏng khách và nhân viên ---------- */
 // W là thế giới tạm (không lưu): khách, nhân viên, chỗ đứng ở các trạm. Tải lại trang thì dựng W mới.
-export function newWorld(S) {
-  const W = { t: 0, spawnT: 0.6, uid: 0, cust: [], staff: [], spots: {}, D: derived(S) };
+// opts.events = false: tắt khách VIP và món hot (kiểm thử đo thu nhập nền cho ổn định).
+export function newWorld(S, opts = {}) {
+  const W = { t: 0, spawnT: 0.6, uid: 0, cust: [], staff: [], spots: {}, D: derived(S), events: opts.events !== false, vipT: 40, hotT: 30, hot: null };
   for (let i = 0; i < W.D.staff; i++) addStaff(W);
   return W;
 }
+const between = ([a, b], rng) => a + (b - a) * rng();
+// Món đang hot (id trạm) hoặc null.
+export const hotSt = W => (W.hot && W.hot.left > 0 ? W.hot.st : null);
 function addStaff(W) {
   const x = LAYOUT.staffHome[W.staff.length % LAYOUT.staffHome.length], z = (LAYOUT.serveZ + LAYOUT.workZ) / 2;
   const s = { id: ++W.uid, x, z, tx: x, tz: z, face: 0, moving: false, state: 'idle', job: null, t: 0, dur: 0, carry: null };
@@ -169,15 +234,34 @@ export function step(S, W, dt, rng = Math.random) {
   W.t += dt;
   while (W.staff.length < D.staff) ev.push({ k: 'hire', s: addStaff(W) });
 
+  // tăng tốc
+  const b = tickBoost(S, dt);
+  if (b) ev.push({ k: b === 'end' ? 'boostEnd' : 'boostReady' });
+
+  const open = sh.stations.filter(s => lvOf(S, s.id) > 0);
+  // món hot: thỉnh thoảng một món đang mở được săn đón một lúc
+  if (W.events && featureOn(S, 'hot')) {
+    if (W.hot) {
+      if ((W.hot.left -= dt) <= 0) { ev.push({ k: 'hotEnd', st: W.hot.st }); W.hot = null; W.hotT = between(CFG.hot.every, rng); }
+    } else if ((W.hotT -= dt) <= 0 && open.length >= 2) {
+      W.hot = { st: rnd(open, rng).id, left: CFG.hot.dur };
+      ev.push({ k: 'hot', st: W.hot.st });
+    }
+  }
+  // khách VIP: đến hẹn thì người khách kế tiếp là VIP
+  if (W.events && featureOn(S, 'vip') && W.vipT > 0) W.vipT -= dt;
+
   // khách tới: chỉ khi quầy còn chỗ đứng
   W.spawnT -= dt;
   if (W.spawnT <= 0) {
     const slots = L.slotsX[D.queue], used = new Set(W.cust.filter(c => c.state !== 'out').map(c => c.slot));
     const free = slots.map((_, i) => i).filter(i => !used.has(i));
-    const open = sh.stations.filter(s => lvOf(S, s.id) > 0);
     if (free.length && open.length) {
-      const slot = rnd(free, rng), [x, z] = L.door;
-      const c = { id: ++W.uid, slot, x, z, tx: slots[slot], tz: L.custZ, face: 0, moving: true, state: 'in', st: rnd(open, rng).id, who: 0, t: 0, seed: rng() };
+      const slot = rnd(free, rng), [x, z] = L.door, hs = hotSt(W);
+      const st = hs && rng() < CFG.hot.share ? hs : rnd(open, rng).id;
+      const vip = W.events && featureOn(S, 'vip') && W.vipT <= 0;
+      if (vip) W.vipT = between(CFG.vip.every, rng) / (1 + vf(S, 'vip'));
+      const c = { id: ++W.uid, slot, x, z, tx: slots[slot], tz: L.custZ, face: 0, moving: true, state: 'in', st, who: 0, t: 0, seed: rng(), vip };
       W.cust.push(c);
       ev.push({ k: 'spawn', c });
       W.spawnT = D.gap * (0.7 + rng() * 0.6);
@@ -220,10 +304,12 @@ export function step(S, W, dt, rng = Math.random) {
       ev.push({ k: 'ready', s, st: s.job.st });
     } else if (s.state === 'deliver' && walk(s, D.walk, dt)) {
       const c = W.cust.find(x => x.id === s.job.c);
-      const amt = profitOf(S, s.job.st, undefined, D);
-      S.money += amt; S.earned += amt; S.served++;
+      const hot = hotSt(W) === s.job.st, vip = !!(c && c.vip);
+      const amt = profitOf(S, s.job.st, undefined, D) * (hot ? CFG.hot.mul : 1) * (vip ? CFG.vip.mul : 1);
+      const gems = vip ? CFG.vip.gems : 0;
+      S.money += amt; S.earned += amt; S.served++; S.gems += gems;
       S.life.earned += amt; S.life.served++;
-      ev.push({ k: 'serve', s, c, st: s.job.st, amt });
+      ev.push({ k: 'serve', s, c, st: s.job.st, amt, hot, vip, gems });
       if (c) { c.state = 'got'; c.t = 0; }
       s.carry = null; s.job = null; s.state = 'idle'; s.face = FACE_OUT;
     }
@@ -259,7 +345,10 @@ export function rate(S, D = derived(S)) {
   const queue = D.queue / (walkIn + C + 0.55);
   return Math.min(1 / D.gap, D.staff / C, cap, queue) * P * EFF;
 }
-export const offlineSecs = secs => Math.min(Math.max(0, secs), CFG.offlineCapH * 3600);
+// Tiền lúc vắng mặt: tính tối đa offlineCapH giờ, Kho báu "Két sắt lớn" cộng thêm giờ; không tính tăng tốc.
+export const offlineCapH = S => CFG.offlineCapH + vf(S, 'offline');
+export const offlineSecs = (S, secs) => Math.min(Math.max(0, secs), offlineCapH(S) * 3600);
+export const offlineRate = S => rate(S, derived(S, { noBoost: true }));
 
 /* ---------- nhiệm vụ ---------- */
 export function taskProg(S, t) {
@@ -279,6 +368,7 @@ export function claimTask(S, i) {
   if (!t || S.claimed[i] || !taskProg(S, t).done) return 0;
   S.claimed[i] = true;
   S.money += t.r;
+  S.gems += t.g ?? CFG.gemsPerTask;
   return t.r;
 }
 export const tasksClaimable = S => tasks(S).filter(t => t.done && !t.claimed).length;
@@ -287,7 +377,9 @@ export const canMove = S => allClaimed(S) && !isLastShop(S);
 export function moveShop(S) {
   if (!canMove(S)) return false;
   const next = S.shop + 1;
-  Object.assign(S, freshShop(), { shop: next, money: SHOPS[next].start });
+  // Kho báu "Vốn khởi nghiệp": vốn đầu chi nhánh mới gấp (1 + cấp) lần
+  Object.assign(S, freshShop(), { shop: next, money: SHOPS[next].start * (1 + vf(S, 'start')) });
+  S.gems += CFG.gemsMove;
   S.st[SHOPS[next].stations[0].id] = 1;
   if (S.ftue.move === 'go') S.ftue.move = 'done';
   return true;

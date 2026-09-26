@@ -1,11 +1,12 @@
 // Mô phỏng cân bằng trên engine thật (logic.js), seed cố định để kết quả tái lập được.
-// Người chơi giả: nhận thưởng nhiệm vụ ngay; đủ tiền cho việc nhiệm vụ đang cần thì làm; không thì mua thứ
+// Người chơi giả: nhận thưởng nhiệm vụ ngay; bấm tăng tốc khi sẵn sàng, tiêu kim cương ở Kho báu; đủ tiền cho việc nhiệm vụ đang cần thì làm; không thì mua thứ
 // hoàn vốn nhanh nhất nếu hoàn vốn dưới PAYBACK giây. Chạy riêng: node tools/balance.mjs
 import { SHOPS } from '../src/data.js';
 import * as L from '../src/logic.js';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const PAYBACK = 600, DT = 0.1;
+const VAULT_PICK = ['profit', 'prep', 'spawn', 'walk', 'vip', 'start', 'boost', 'offline'];
 
 // Việc cần làm cho nhiệm vụ t: { cost, go() } hoặc null nếu chưa làm được (ví dụ phải mở trạm trước).
 function taskAction(S, t) {
@@ -34,6 +35,9 @@ function bestBuy(S) {
 }
 function decide(S) {
   L.tasks(S).forEach(t => { if (t.done && !t.claimed) L.claimTask(S, t.i); });
+  // người chơi thật bấm tăng tốc mỗi khi sẵn sàng và tiêu kim cương ở Kho báu, ưu tiên buff tăng tiền bán
+  L.activateBoost(S);
+  if (L.featureOn(S, 'vault')) for (const id of VAULT_PICK) if (L.buyVault(S, id)) return true;
   const t = L.tasks(S).find(x => !x.done);
   const ta = t && taskAction(S, t);
   if (ta && S.money >= ta.cost) { ta.go(); return true; }

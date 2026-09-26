@@ -14,6 +14,7 @@ const SWING = 0.3;           // nốt móc kép lẻ trễ 30% độ dài một 
 
 let bus = null, musicGain = null, echoSend = null, timer = null;
 let on = true, step = 0, nextTime = 0, resync = true, duckUntil = 0, duckTo = 1;
+let tempo = 1;   // nhanh hơn một chút khi đang tăng tốc
 
 const hz = m => 440 * 2 ** ((m - 69) / 12);
 const chance = p => Math.random() < p;
@@ -99,7 +100,7 @@ function hiss(t, dur, vol, lo, hi) {
 // Một bước móc kép: quyết định mọi bè rơi vào bước này.
 function gen(n, t) {
   const bar = Math.floor(n / 16), s = n % 16, sec = Math.floor(bar / 8) % 2 ? B : A, ch = sec[bar % 4];
-  const beat = 60 / BPM;
+  const beat = 60 / (BPM * tempo);
   if (s === 0) {
     // hợp âm đầu ô nhịp ngân dài, đảo nốt trên cùng lên quãng tám cho có biến tấu
     const voicing = chance(0.35) ? [...ch.n.slice(0, 3), ch.n[3] + 12] : ch.n;
@@ -152,7 +153,7 @@ function tick() {
   // chưa có cú chạm đầu tiên hoặc tab đang ẩn: chưa rải nốt, lúc chạy lại thì bắt nhịp từ đầu
   if (c.state !== 'running' || !on) { resync = true; return; }
   if (resync) { nextTime = c.currentTime + 0.08; resync = false; }
-  const s16 = 60 / BPM / 4;
+  const s16 = 60 / (BPM * tempo) / 4;
   while (nextTime < c.currentTime + LOOKAHEAD) {
     try { gen(step, nextTime + (step % 2 ? s16 * SWING : 0)); } catch (e) { /* bỏ qua */ }
     nextTime += s16;
@@ -175,5 +176,7 @@ export const Music = {
   },
   // Hạ nhạc tạm thời để khoảnh khắc lớn (qua mốc, chuyển quán) nổi lên.
   duck(sec = 1.5, amt = 0.35) { if (bus) { duckUntil = bus.ctx.currentTime + sec; duckTo = amt; } },
-  state: () => ({ on, step, ctx: bus && bus.ctx.state, gain: musicGain ? +musicGain.gain.value.toFixed(3) : null }),
+  // Đang tăng tốc thì nhạc nhanh hơn 12% cho hợp không khí; tắt tăng tốc thì trở về nhịp thường.
+  setTempo(k) { tempo = k; },
+  state: () => ({ on, step, tempo, ctx: bus && bus.ctx.state, gain: musicGain ? +musicGain.gain.value.toFixed(3) : null }),
 };

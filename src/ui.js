@@ -21,6 +21,13 @@ export const ICON = {
   lock: `<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="#f0b43c" stroke="${K}" stroke-width="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="${K}" stroke-width="2.2"/><circle cx="12" cy="15.5" r="1.6" fill="${K}"/></svg>`,
   list: `<svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="18" rx="2.5" fill="#fffaf2" stroke="${K}" stroke-width="2"/><rect x="8.5" y="2" width="7" height="4" rx="1.5" fill="#f0b43c" stroke="${K}" stroke-width="1.8"/><path d="M8 11l1.6 1.6L12.5 9.5M8 16.5l1.6 1.6 2.9-3.1" fill="none" stroke="#4fa883" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11.5h2.5M14 17h2.5" stroke="${K}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   shop: `<svg viewBox="0 0 24 24"><path d="M4 10.5V20h16v-9.5" fill="#fffaf2" stroke="${K}" stroke-width="2" stroke-linejoin="round"/><path d="M3 6.5L5 3.5h14l2 3v2.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-4.5 0 2.5 2.5 0 0 1-4.5 0A2.5 2.5 0 0 1 3 9z" fill="#e25b4a" stroke="${K}" stroke-width="2" stroke-linejoin="round"/><rect x="9.5" y="13.5" width="5" height="6.5" fill="#8a5a3b" stroke="${K}" stroke-width="1.8"/></svg>`,
+  gem: `<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11l4 5.5L12 21 2.5 9z" fill="#7fd6ff" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><path d="M2.5 9h19M8.5 3.5L7 9l5 12 5-12-1.5-5.5" fill="none" stroke="${K}" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 9l5 12L2.5 9z" fill="#4fb3e8"/><path d="M9 5l-1 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  vault: `<svg viewBox="0 0 24 24"><path d="M3 10a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v1H3z" fill="#e25b4a" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><rect x="3" y="11" width="18" height="9" rx="1.5" fill="#c9793b" stroke="${K}" stroke-width="1.8"/><path d="M3 14h18" stroke="${K}" stroke-width="1.4"/><rect x="10" y="11.5" width="4" height="5" rx="1" fill="#ffd23f" stroke="${K}" stroke-width="1.4"/><path d="M7 6v14M17 6v14" stroke="#ffd23f" stroke-width="1.6"/></svg>`,
+  bolt: `<svg viewBox="0 0 24 24"><path d="M13.5 2.5L5 13.5h6l-1.5 8 9-11.5h-6z" fill="#ffd23f" stroke="${K}" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  flame: `<svg viewBox="0 0 24 24"><path d="M12 2.5c1 3.6 5.5 5.5 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.2 2.6-5.3.1 1.7.8 2.8 1.9 3.3C10.5 8.4 11.3 5 12 2.5z" fill="#ff8a3d" stroke="${K}" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12.5c1.2 1.3 2.4 2 2.4 3.8a2.4 2.4 0 0 1-4.8 0c0-1.2.8-2.3 2.4-3.8z" fill="#ffd23f"/></svg>`,
+  crown: `<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#ffc83d" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="15" r="1.8" fill="#e25b4a"/><path d="M5.5 17h13" stroke="${K}" stroke-width="1.3"/></svg>`,
+  offline: `<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2" fill="#9aa6b8" stroke="${K}" stroke-width="1.8"/><circle cx="12" cy="13.5" r="3.2" fill="#dfe6ee" stroke="${K}" stroke-width="1.6"/><path d="M12 11.5v2l1.4 1" stroke="${K}" stroke-width="1.4" stroke-linecap="round"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7" fill="none" stroke="${K}" stroke-width="1.8"/></svg>`,
+  start: `<svg viewBox="0 0 24 24"><path d="M5 20V9l7-5 7 5v11z" fill="#fff3dc" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><rect x="9.5" y="13" width="5" height="7" fill="#8a5a3b" stroke="${K}" stroke-width="1.5"/><circle cx="17.5" cy="17.5" r="4" fill="#f5c542" stroke="${K}" stroke-width="1.6"/><path d="M17.5 15.5v4M15.5 17.5h4" stroke="${K}" stroke-width="1.5" stroke-linecap="round"/></svg>`,
   arrowUp: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#f0b43c" stroke="${K}" stroke-width="2"/><path d="M12 6.5l5 5.5h-3v5h-4v-5H7z" fill="#fff" stroke="${K}" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
   // icon cho từng loại nâng cấp
   staff: `<svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4" fill="#e8b894" stroke="${K}" stroke-width="2"/><path d="M8 4.8h8v-1a4 3 0 0 0-8 0z" fill="#8a5a3b" stroke="${K}" stroke-width="1.6"/><path d="M4.5 21a7.5 7 0 0 1 15 0z" fill="#fff8ee" stroke="${K}" stroke-width="2" stroke-linejoin="round"/><path d="M9.5 14.6h5V21h-5z" fill="#8a5a3b" stroke="${K}" stroke-width="1.6"/></svg>`,
@@ -80,12 +87,14 @@ export function punchEl(el) { if (!el) return; el.classList.remove('punch'); voi
 export const retrigger = (el, cls) => { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
 export const centerOf = el => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
 // Xu bay từ chỗ tiền sinh ra lên ô tiền: chỉ khi xu chạm ô tiền thì ô tiền mới nảy.
-export function coinFly(x, y, n = 4, quiet = false) {
-  const to = $('hMoney').getBoundingClientRect(), tx = to.left + 4, ty = to.top + to.height / 2;
+// gem = true: bay kim cương về ô kim cương (khách VIP, qua mốc, nhận thưởng).
+export function coinFly(x, y, n = 4, quiet = false, gem = false) {
+  const box = gem && !$('hGemBox').hidden ? $('hGemBox') : $('hMoneyBox');
+  const to = (gem ? box : $('hMoney')).getBoundingClientRect(), tx = to.left + (gem ? 14 : 4), ty = to.top + to.height / 2;
   for (let i = 0; i < n; i++) {
     const c = document.createElement('div');
     c.className = 'coinfly';
-    c.innerHTML = ICON.coin;
+    c.innerHTML = gem ? ICON.gem : ICON.coin;
     document.body.appendChild(c);
     const sx = x + (Math.random() - 0.5) * 40, sy = y + (Math.random() - 0.5) * 20, mx = (sx + tx) / 2 + (Math.random() - 0.5) * 80, my = Math.min(sy, ty) - 40 - Math.random() * 40;
     const a = c.animate([
@@ -94,7 +103,7 @@ export function coinFly(x, y, n = 4, quiet = false) {
       { transform: `translate(${mx}px,${my}px) scale(1)`, opacity: 1, offset: 0.55 },
       { transform: `translate(${tx}px,${ty}px) scale(.7)`, opacity: 1 },
     ], { duration: 650 + i * 70, easing: 'cubic-bezier(.5,0,.6,1)', delay: i * 40, fill: 'backwards' });
-    a.onfinish = () => { c.remove(); punchEl($('hMoneyBox')); if (!quiet) sfx.tick(); };
+    a.onfinish = () => { c.remove(); punchEl(box); if (!quiet) (gem ? sfx.gem : sfx.tick)(); };
   }
 }
 // Pháo giấy DOM cho những khoảnh khắc ở giao diện (mở trạm, qua mốc, nhận thưởng, chuyển quán).
