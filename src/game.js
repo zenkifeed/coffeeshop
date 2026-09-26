@@ -45,7 +45,8 @@ const musicOn = () => opts.music !== false;
 // Trộn bản lưu với trạng thái mặc định để bản lưu cũ thiếu trường mới vẫn chạy.
 function hydrate(d, legacy) {
   if (!d) { const s = L.freshState(); if (legacy) s.shopName = legacy.shopName; return s; }
-  const shop = Math.max(0, Math.min(SHOPS.length - 1, d.shop | 0)), f = L.freshState(shop);
+  d = L.migrate(d);   // bản lưu thang tiền cũ: chia tiền cho 1.000
+  const shop =Math.max(0, Math.min(SHOPS.length - 1, d.shop | 0)), f = L.freshState(shop);
   const s = { ...f, ...d, shop, st: { ...f.st, ...d.st }, upg: { ...d.upg }, claimed: { ...d.claimed }, life: { ...f.life, ...d.life }, ftue: { ...L.newFtue(), ...d.ftue } };
   if (!Number.isFinite(s.money) || s.money < 0) s.money = 0;
   return s;
@@ -625,7 +626,7 @@ async function cloudSync(next = () => {}) {
   if (!Cloud.user) return next();
   const rec = await Cloud.pull();
   if (!rec) { toast('Chưa kết nối được máy chủ lưu, tạm lưu trên máy', true); return next(); }
-  const cloud = rec.data;
+  const cloud = L.migrate(rec.data);   // bản trên mây lưu từ trước khi đổi thang tiền
   const keepLocal = async () => { Cloud.synced = true; if (await Cloud.push(S, true)) toast('Đã lưu tiến trình lên Discord'); next(); };
   const takeCloud = () => { R.tookCloud = true; Cloud.synced = true; Cloud.lastAt = rec.at; applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
   if (!cloud) return keepLocal();
@@ -662,7 +663,7 @@ const whenOf = t => t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', m
 function restoreDlg(back) {
   const list = SV.listBackups();
   if (!list.length) return modal(`<h2>Chưa có bản tự lưu</h2><p>Game giữ 3 bản dự phòng, cứ ${CFG.backupEvery / 60} phút chơi thêm một bản và mỗi lần chuyển quán.</p>`, [['Quay lại', back, 1]]);
-  const label = d => `${whenOf(d.at)} · ${SHOPS[d.shop] ? SHOPS[d.shop].n : '?'} · ${fmt(d.money)}`;
+  const label = d => `${whenOf(d.at)} · ${SHOPS[d.shop] ? SHOPS[d.shop].n : '?'} · ${fmt(L.migrate(d).money)}`;
   modal('<h2>Khôi phục bản tự lưu</h2><p>Chọn bản muốn lấy lại. Tiến trình hiện tại sẽ bị thay thế.</p>',
     [...list.map(b => [label(b.data), () => modal(`<h2>Lấy lại bản này?</h2><p><b>${esc(b.data.shopName || 'Quán Cà Phê Nhỏ')}</b> · ${label(b.data)}</p>`, [['Huỷ', () => restoreDlg(back)], ['Khôi phục', () => applyState(b.data, 'Đã khôi phục bản lưu lúc ' + whenOf(b.data.at)), 1]])]), ['Quay lại', back]]);
 }

@@ -30,8 +30,16 @@ ok(SHOPS.every(sh => sh.upgrades.filter(u => u.fx === 'staff').every((u, i) => u
 ok(SHOPS.every(sh => Number.isFinite(sh.theme.apron) && sh.theme.flags.length >= 2), 'mỗi chi nhánh có màu tạp dề và cờ dây');
 
 console.log('Định dạng tiền');
-[[0, '0đ'], [950, '950đ'], [1500, '1,5k'], [20000, '20k'], [999960, '1 tr'], [1.25e6, '1,25 tr'], [3.4e9, '3,4 tỷ'], [1.2e13, '12 nghìn tỷ'], [-2e4, '−20k']]
+[[0, '0'], [5, '5'], [0.84, '0,8'], [60, '60'], [950, '950'], [999.6, '1k'], [1500, '1,5k'], [20000, '20k'], [999960, '1m'], [1.25e6, '1,25m'], [3.4e9, '3,4b'], [1.2e13, '12t'], [-2e4, '−20k']]
   .forEach(([n, s]) => ok(L.fmt(n) === s, `fmt(${n}) = ${s} (ra ${L.fmt(n)})`));
+ok(SHOPS[0].start < 1000 && L.fmt(SHOPS[0].start) === String(SHOPS[0].start), 'vốn đầu game chỉ vài chục vàng, hiện bằng số thường');
+{
+  const old = { v: 2, shop: 1, money: 5e6, earned: 2e9, st: { latte: 3 }, life: { served: 90, earned: 3e9 } };
+  const m = L.migrate(old);
+  ok(m.eco === L.ECO && m.money === 5000 && m.earned === 2e6 && m.life.earned === 3e6 && m.life.served === 90 && m.st.latte === 3, 'bản lưu thang tiền cũ: chia tiền cho 1.000, giữ nguyên cấp trạm và số khách');
+  ok(old.money === 5e6, 'chuyển bản lưu không sửa bản gốc');
+  ok(L.migrate(m) === m && L.migrate(L.freshState()).money === SHOPS[0].start && L.migrate(null) === null, 'bản đã đúng thang thì giữ nguyên, không chia hai lần');
+}
 
 console.log('Cấp trạm');
 {

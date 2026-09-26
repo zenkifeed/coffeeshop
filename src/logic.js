@@ -5,14 +5,16 @@ import { CFG, LAYOUT, SHOPS } from './data.js';
 
 export const rnd = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 
-/* ---------- định dạng tiền: k, tr, tỷ, nghìn tỷ ---------- */
-const UNITS = [[1e15, ' triệu tỷ'], [1e12, ' nghìn tỷ'], [1e9, ' tỷ'], [1e6, ' tr'], [1e3, 'k']];
+/* ---------- định dạng tiền vàng: số thường dưới 1.000, rồi k, m, b, t ---------- */
+// k = nghìn, m = triệu, b = tỷ, t = nghìn tỷ. Dưới 10 giữ một chữ số thập phân (thu nhập mỗi giây lúc đầu chỉ vài xu).
+const UNITS = [[1e12, 't'], [1e9, 'b'], [1e6, 'm'], [1e3, 'k']];
 export function fmt(n) {
   if (!Number.isFinite(n)) return '∞';
   const sign = n < 0 ? '−' : '';
   n = Math.abs(n);
-  if (n < 1e3) return sign + Math.round(n) + 'đ';
-  if (n >= 1e18) return sign + n.toExponential(2).replace('.', ',').replace('e+', 'e');
+  if (n < 10) return sign + (Math.round(n * 10) / 10).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+  if (Math.round(n) < 1e3) return sign + Math.round(n);
+  if (n >= 1e15) return sign + n.toExponential(2).replace('.', ',').replace('e+', 'e');
   for (let i = UNITS.length - 1; i >= 0; i--) {
     const [u, s] = UNITS[i], next = UNITS[i - 1];
     const v = n / u, d = v >= 100 ? 0 : v >= 10 ? 1 : 2;
@@ -27,10 +29,19 @@ export function fmt(n) {
 /* ---------- trạng thái ---------- */
 const freshShop = () => ({ st: {}, upg: {}, claimed: {}, served: 0, earned: 0 });
 export const newFtue = () => ({ welcomed: false, skip: false, first: null, unlock: null, upg: null, move: null });
+// eco: phiên bản thang tiền. 1 = bản đầu (tiền tính theo đồng, vốn 60.000), 2 = tiền vàng (vốn 60).
+export const ECO = 2;
 export function freshState(shop = 0) {
-  const S = { v: 2, shop, money: SHOPS[shop].start, ...freshShop(), shopName: '', life: { served: 0, earned: 0 }, ftue: newFtue(), at: 0 };
+  const S = { v: 2, eco: ECO, shop, money: SHOPS[shop].start, ...freshShop(), shopName: '', life: { served: 0, earned: 0 }, ftue: newFtue(), at: 0 };
   S.st[SHOPS[shop].stations[0].id] = 1;
   return S;
+}
+// Bản lưu thang tiền cũ (chưa có eco): chia mọi khoản tiền cho 1.000 cho khớp giá mới.
+// Trả về bản sao đã chuyển; bản đã đúng thang thì trả nguyên. Dùng cho bản trên máy, trên mây và bản dự phòng.
+export function migrate(d) {
+  if (!d || d.eco >= ECO) return d;
+  const k = 1000, life = d.life || {};
+  return { ...d, eco: ECO, money: (d.money || 0) / k, earned: (d.earned || 0) / k, life: { ...life, earned: (life.earned || 0) / k } };
 }
 export const shopOf = S => SHOPS[Math.min(S.shop, SHOPS.length - 1)];
 export const isLastShop = S => S.shop >= SHOPS.length - 1;
