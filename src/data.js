@@ -29,6 +29,14 @@ export const LAYOUT = {
   staffHome: [0, -1.1, 1.1, -2.2, 2.2, -0.55, 0.55],
 };
 
+// Nhân viên là các bạn gấu, vào ca theo thứ tự này (bạn đầu có sẵn, ba bạn sau thuê bằng nâng cấp).
+export const BEARS = [
+  { id: 'brown', n: 'Gấu Nâu',  d: 'Đội mũ lưỡi trai đỏ, thích pha cà phê đậm' },
+  { id: 'panda', n: 'Gấu Trúc', d: 'Cài nơ hồng, hay vẫy tay chào khách' },
+  { id: 'white', n: 'Gấu Trắng', d: 'Quàng khăn xanh, ít nói mà pha rất nhanh' },
+  { id: 'honey', n: 'Gấu Mật',  d: 'Cài lá trên đầu, lúc nào cũng tươi cười' },
+];
+
 // Ba quán nối nhau. Mỗi quán: 5 trạm (mỗi trạm một món), danh sách nâng cấp mua một lần và danh sách
 // nhiệm vụ. Nhận hết thưởng nhiệm vụ thì chuyển sang quán kế tiếp; tiền và trạm ở quán cũ để lại.
 // Trạm: price = tiền một ly ở cấp 1, time = giây pha, unlock = giá mở, cost = giá lên cấp 2.
@@ -38,7 +46,7 @@ export const SHOPS = [
   {
     id: 'gocpho', n: 'Góc Phố', d: 'Quán nhỏ đầu hẻm, bán cà phê cho người đi làm.',
     start: 6e4, gap: 2.6,
-    theme: { floor: 0xc49a6c, plank: 0xb58a5e, wall: 0xf4dfc4, wainscot: 0x9c6b48, rug: 0x7fb7a4, chair: 0xe2574c, sky: 0xf3e3cc },
+    theme: { floor: 0xe8c9a6, plank: 0xdab68f, wall: 0xfff1e0, wainscot: 0xf4a6a6, rug: 0xa8e0d1, chair: 0xffb3c1, sky: 0xffe9d6, apron: 0xff8fa3, flags: [0xff8fa3, 0xffd166, 0x8fd3c1, 0xa0c4ff] },
     stations: [
       { id: 'den',    n: 'Cà phê đen',  c: '#3b2314', ice: true,  prop: 'espresso', price: 5e3,   time: 2.6, unlock: 0,     cost: 2e4 },
       { id: 'sua',    n: 'Cà phê sữa',  c: '#8a5a3b', ice: true,  prop: 'can',      price: 3e4,   time: 3,   unlock: 2.4e6, cost: 3e5 },
@@ -47,16 +55,16 @@ export const SHOPS = [
       { id: 'ame',    n: 'Americano',   c: '#5a3520', ice: false, prop: 'kettle',   price: 6.5e6, time: 3.8, unlock: 5.2e8, cost: 6.5e7 },
     ],
     upgrades: [
-      { id: 'staff2', n: 'Thuê pha chế thứ hai',      d: 'Thêm một người pha',               cost: 1.8e5, fx: 'staff' },
+      { id: 'staff2', n: 'Thuê Gấu Trúc',           d: 'Thêm một bạn gấu pha chế',               cost: 1.8e5, fx: 'staff' },
       { id: 'sign',   n: 'Biển hiệu đèn neon',        d: 'Khách tới nhiều hơn 30%',          cost: 1.8e6, fx: 'spawn', v: 1.3 },
       { id: 'shoes',  n: 'Giày thể thao cho quán',    d: 'Nhân viên đi nhanh hơn 30%',       cost: 4.5e6, fx: 'walk', v: 1.3 },
       { id: 'queue4', n: 'Kê thêm chỗ đứng',          d: 'Thêm một chỗ khách chờ ở quầy',    cost: 1.2e7, fx: 'queue' },
-      { id: 'staff3', n: 'Thuê pha chế thứ ba',       d: 'Thêm một người pha',               cost: 3.6e7, fx: 'staff' },
+      { id: 'staff3', n: 'Thuê Gấu Trắng',          d: 'Thêm một bạn gấu pha chế',               cost: 3.6e7, fx: 'staff' },
       { id: 'beans',  n: 'Hạt Robusta Cầu Đất',       d: 'Cà phê đen bán gấp 3',             cost: 9e7,   fx: 'profit', st: 'den', v: 3 },
       { id: 'grind',  n: 'Máy xay chuyên nghiệp',     d: 'Pha nhanh hơn 30%',                cost: 1.5e8, fx: 'prep', v: 1.3 },
       { id: 'milk',   n: 'Sữa đặc loại ngon',         d: 'Cà phê sữa và bạc xỉu bán gấp 2',  cost: 3e8,   fx: 'profit', st: ['sua', 'bacxiu'], v: 2 },
       { id: 'queue5', n: 'Mái hiên che nắng',         d: 'Thêm một chỗ khách chờ ở quầy',    cost: 6e8,   fx: 'queue' },
-      { id: 'staff4', n: 'Thuê pha chế thứ tư',       d: 'Thêm một người pha',               cost: 1e9,   fx: 'staff' },
+      { id: 'staff4', n: 'Thuê Gấu Mật',            d: 'Thêm một bạn gấu pha chế',               cost: 1e9,   fx: 'staff' },
     ],
     tasks: [
       { k: 'level', st: 'den', v: 5,     r: 3e4 },
@@ -76,7 +84,7 @@ export const SHOPS = [
   {
     id: 'sanvuon', n: 'Sân Vườn', d: 'Quán có giàn hoa giấy, khách ngồi lâu, gọi món cầu kỳ.',
     start: 3e6, gap: 2.4,
-    theme: { floor: 0xa9b98a, plank: 0x93a577, wall: 0xf1ead2, wainscot: 0x6f8f5a, rug: 0xe8a07a, chair: 0x4fa883, sky: 0xe9f0d8 },
+    theme: { floor: 0xcfe3b0, plank: 0xbdd49c, wall: 0xf6fbea, wainscot: 0x9ed39a, rug: 0xffd0a8, chair: 0x8fd3c1, sky: 0xeaf6d8, apron: 0x7cc79a, flags: [0xffd0a8, 0xffffff, 0x9ed39a, 0xffb3c1] },
     stations: [
       { id: 'latte',   n: 'Latte',          c: '#d9b48a', ice: false, prop: 'pitcher',  price: 2e5,   time: 3,   unlock: 0,      cost: 8e5 },
       { id: 'muoi',    n: 'Cà phê muối',    c: '#b8875a', ice: true,  prop: 'cream',    price: 1.2e6, time: 3.2, unlock: 9.6e7,  cost: 1.2e7 },
@@ -85,14 +93,14 @@ export const SHOPS = [
       { id: 'caramel', n: 'Caramel latte',  c: '#c9812c', ice: true,  prop: 'espresso', price: 2.6e8, time: 4,   unlock: 2.1e10, cost: 2.6e9 },
     ],
     upgrades: [
-      { id: 'staff2', n: 'Thuê pha chế thứ hai',      d: 'Thêm một người pha',               cost: 6e6,    fx: 'staff' },
+      { id: 'staff2', n: 'Thuê Gấu Trúc',           d: 'Thêm một bạn gấu pha chế',               cost: 6e6,    fx: 'staff' },
       { id: 'sign',   n: 'Cổng hoa giấy',             d: 'Khách tới nhiều hơn 30%',          cost: 7.5e7,  fx: 'spawn', v: 1.3 },
       { id: 'shoes',  n: 'Lối đi lát gạch',           d: 'Nhân viên đi nhanh hơn 30%',       cost: 1.8e8,  fx: 'walk', v: 1.3 },
-      { id: 'staff3', n: 'Thuê pha chế thứ ba',       d: 'Thêm một người pha',               cost: 4.5e8,  fx: 'staff' },
+      { id: 'staff3', n: 'Thuê Gấu Trắng',          d: 'Thêm một bạn gấu pha chế',               cost: 4.5e8,  fx: 'staff' },
       { id: 'queue4', n: 'Thêm ghế đá',               d: 'Thêm một chỗ khách chờ ở quầy',    cost: 9e8,    fx: 'queue' },
       { id: 'grind',  n: 'Máy pha hai vòi',           d: 'Pha nhanh hơn 30%',                cost: 3.6e9,  fx: 'prep', v: 1.3 },
       { id: 'peach',  n: 'Đào ngâm nhà làm',          d: 'Trà đào bán gấp 3',                cost: 9e9,    fx: 'profit', st: 'tradao', v: 3 },
-      { id: 'staff4', n: 'Thuê pha chế thứ tư',       d: 'Thêm một người pha',               cost: 2.4e10, fx: 'staff' },
+      { id: 'staff4', n: 'Thuê Gấu Mật',            d: 'Thêm một bạn gấu pha chế',               cost: 2.4e10, fx: 'staff' },
       { id: 'queue5', n: 'Mở thêm khoảnh sân',        d: 'Thêm một chỗ khách chờ ở quầy',    cost: 6e10,   fx: 'queue' },
       { id: 'music',  n: 'Nhạc acoustic cuối tuần',   d: 'Mọi món bán gấp 2',                cost: 1.8e11, fx: 'profit', st: 'all', v: 2 },
     ],
@@ -115,7 +123,7 @@ export const SHOPS = [
   {
     id: 'phoco', n: 'Phố Cổ', d: 'Căn gác cũ giữa phố cổ, khách du lịch xếp hàng thử cà phê trứng.',
     start: 1.5e8, gap: 2.2,
-    theme: { floor: 0x9a6b4f, plank: 0x87593f, wall: 0xf2d27a, wainscot: 0x7a3f2c, rug: 0xc23b30, chair: 0x2f5d8a, sky: 0xf6e3b4 },
+    theme: { floor: 0xe0b58f, plank: 0xd1a37c, wall: 0xfff0b8, wainscot: 0xf29e7c, rug: 0xffc6d9, chair: 0x9cc5f0, sky: 0xfff1cf, apron: 0xf29e7c, flags: [0xff6b6b, 0xffd166, 0xffffff, 0x9cc5f0] },
     stations: [
       { id: 'trung',    n: 'Cà phê trứng',   c: '#e2b86a', ice: false, prop: 'cream',    price: 1e7,    time: 3.2, unlock: 0,       cost: 4e7 },
       { id: 'cotdua',   n: 'Cà phê cốt dừa', c: '#efe3cf', ice: true,  prop: 'can',      price: 6e7,    time: 3.2, unlock: 4.8e9,   cost: 6e8 },
@@ -124,14 +132,14 @@ export const SHOPS = [
       { id: 'mocha',    n: 'Mocha sô-cô-la', c: '#6b3a24', ice: false, prop: 'espresso', price: 1.3e10, time: 4.2, unlock: 1e12,    cost: 1.3e11 },
     ],
     upgrades: [
-      { id: 'staff2', n: 'Thuê pha chế thứ hai',      d: 'Thêm một người pha',               cost: 3e8,    fx: 'staff' },
+      { id: 'staff2', n: 'Thuê Gấu Trúc',           d: 'Thêm một bạn gấu pha chế',               cost: 3e8,    fx: 'staff' },
       { id: 'sign',   n: 'Đèn lồng Hội An',           d: 'Khách tới nhiều hơn 30%',          cost: 3.6e9,  fx: 'spawn', v: 1.3 },
       { id: 'shoes',  n: 'Cầu thang mới',             d: 'Nhân viên đi nhanh hơn 30%',       cost: 9e9,    fx: 'walk', v: 1.3 },
-      { id: 'staff3', n: 'Thuê pha chế thứ ba',       d: 'Thêm một người pha',               cost: 2.4e10, fx: 'staff' },
+      { id: 'staff3', n: 'Thuê Gấu Trắng',          d: 'Thêm một bạn gấu pha chế',               cost: 2.4e10, fx: 'staff' },
       { id: 'queue4', n: 'Ghế đẩu vỉa hè',            d: 'Thêm một chỗ khách chờ ở quầy',    cost: 4.5e10, fx: 'queue' },
       { id: 'egg',    n: 'Trứng gà ta',               d: 'Cà phê trứng bán gấp 3',           cost: 1.5e11, fx: 'profit', st: 'trung', v: 3 },
       { id: 'grind',  n: 'Máy rang tại chỗ',          d: 'Pha nhanh hơn 30%',                cost: 4.5e11, fx: 'prep', v: 1.3 },
-      { id: 'staff4', n: 'Thuê pha chế thứ tư',       d: 'Thêm một người pha',               cost: 1.2e12, fx: 'staff' },
+      { id: 'staff4', n: 'Thuê Gấu Mật',            d: 'Thêm một bạn gấu pha chế',               cost: 1.2e12, fx: 'staff' },
       { id: 'queue5', n: 'Mở tầng hai',               d: 'Thêm một chỗ khách chờ ở quầy',    cost: 3e12,   fx: 'queue' },
       { id: 'guide',  n: 'Lên sách hướng dẫn du lịch', d: 'Mọi món bán gấp 2',               cost: 9e12,   fx: 'profit', st: 'all', v: 2 },
     ],

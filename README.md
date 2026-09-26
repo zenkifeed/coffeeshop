@@ -1,11 +1,11 @@
 # Quán Cà Phê Nhỏ
 
-Game quản lý chuỗi quán cà phê 3D chạy thẳng trên trình duyệt, lối chơi giống Eatventure. Khách tự tới, nhân viên tự pha và bán, tiền tự vào két. Bạn chạm vào các trạm pha để nâng cấp, mở thêm món, thuê thêm người, làm nhiệm vụ để chuyển sang chi nhánh lớn hơn. Tắt game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt.
+Game quản lý chuỗi quán cà phê 3D phong cách dễ thương, chạy thẳng trên trình duyệt, lối chơi giống Eatventure. Khách tự tới, các bạn gấu nhân viên tự pha và bán, tiền tự vào két. Bạn chạm vào các trạm pha để nâng cấp, mở thêm món, thuê thêm người, làm nhiệm vụ để chuyển sang chi nhánh lớn hơn. Tắt game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt.
 
 - **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
 
-Toàn bộ đồ hoạ 3D dựng bằng code Three.js, không có file ảnh hay model. Phòng và người là khối low-poly; đồ vật trên quầy (máy espresso, lon sữa, ấm, chai siro, ly mang đi) dựng bằng khối xoay và khối bo góc, bóng mịn, có phản chiếu nhẹ để ra chất inox, sứ, thuỷ tinh. Âm thanh và nhạc nền lo-fi tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
+Toàn bộ đồ hoạ 3D dựng bằng code Three.js, không có file ảnh hay model. Gấu và khách chibi dựng từ khối tròn bóng mịn, có khuôn mặt đổi biểu cảm; phòng màu pastel, có cờ dây và thảm tròn; đồ vật trên quầy (máy espresso, lon sữa, ấm, chai siro, ly mang đi) dựng bằng khối xoay và khối bo góc, bóng mịn, có phản chiếu nhẹ để ra chất inox, sứ, thuỷ tinh. Âm thanh và nhạc nền lo-fi tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
 
 ## Chạy trên máy
 
@@ -37,9 +37,29 @@ Bong bóng không chặn thao tác, bong bóng nào cũng có nút "Bỏ qua hư
 ### Quán chạy thế nào
 
 - Khách vào cửa, đứng chờ ở quầy (lúc đầu 3 chỗ, tối đa 5) và gọi ngẫu nhiên một món trong các trạm đã mở. Quầy kín chỗ thì khách mới chưa vào.
-- Pha chế rảnh nhận đơn của khách chờ lâu nhất, đi tới trạm của món đó, pha xong thì mang ra quầy. Khách nhận ly thì trả tiền (số tiền bay lên từ đầu khách).
-- Mỗi trạm lúc đầu chỉ cho một người pha cùng lúc; cấp 25 thêm chỗ thứ hai, cấp 75 thêm chỗ thứ ba.
+- Bạn gấu rảnh tay nhận đơn của khách chờ lâu nhất, đi tới trạm của món đó, pha xong thì bưng ra quầy. Khách nhận ly thì trả tiền (số tiền bay lên từ đầu khách) và thả tim.
+- Mỗi trạm lúc đầu chỉ cho một bạn gấu pha cùng lúc; cấp 25 thêm chỗ thứ hai, cấp 75 thêm chỗ thứ ba.
 - Thanh trên hiện tiền trong két và thu nhập ước tính mỗi giây.
+
+### Đội gấu
+
+Nhân viên là bốn bạn gấu, vào ca theo thứ tự:
+
+| Gấu | Nhận ra bằng | Vào ca |
+|---|---|---|
+| Gấu Nâu | mũ lưỡi trai đỏ | có sẵn |
+| Gấu Trúc | nơ hồng trên tai | nâng cấp "Thuê Gấu Trúc" |
+| Gấu Trắng | khăn quàng xanh | nâng cấp "Thuê Gấu Trắng" |
+| Gấu Mật | chiếc lá trên đầu | nâng cấp "Thuê Gấu Mật" |
+
+Mọi bạn gấu mặc tạp dề màu của chi nhánh, có túi hình tim. Sang chi nhánh mới thì Gấu Nâu đi cùng, các bạn khác thuê lại.
+
+- **Động tác:** đi lạch bạch, hai tay lắc lắc khi pha, bưng ly bằng hai tay, nhún người khi đưa ly cho khách. Rảnh tay thì quay ra nhìn người chơi, thỉnh thoảng vẫy tay, vươn vai ngáp hay ngó quanh; tai giật nhẹ.
+- **Biểu cảm:** chớp mắt, mắt hơi híp khi tập trung pha, cười híp mắt khi đưa ly hay ăn mừng, nhắm mắt há miệng khi ngáp.
+- **Ăn mừng:** gấu mới vào ca thì xoay một vòng; trạm nào qua mốc cấp hay vừa sang chi nhánh mới thì cả đội giơ tay nhảy lên.
+- **Chạm vào gấu** thì gấu vẫy chào, bắn tim nhỏ. Chạm vào khách thì khách vẫy lại.
+
+Nút **Quán** có danh sách đội gấu: ai đang làm, ai chưa thuê và giá thuê.
 
 ### Trạm pha
 
@@ -48,20 +68,20 @@ Chạm vào một trạm (hoặc nhãn cấp dưới trạm) để mở bảng t
 - **Cấp 1–100.** Mỗi cấp đắt hơn cấp trước 16%. Tiền mỗi ly = tiền cấp 1 × cấp.
 - **Mốc cấp 10, 25, 50, 75, 100:** mỗi mốc được một sao và tiền mỗi ly ×2.
 - Chọn mua **x1**, **x10**, **Tới mốc** hoặc **Tối đa** (nhiều nhất đủ tiền). **Giữ nút Nâng cấp** để nâng liên tục.
-- Nhãn dưới trạm: cấp hiện tại, số sao, mũi tên xanh khi đủ tiền lên cấp, vạch xanh khi đang có người pha.
+- Nhãn dưới trạm: cấp hiện tại, số sao, mũi tên xanh khi đủ tiền lên cấp, vạch xanh khi đang có gấu pha.
 
 Trạm chưa mở là **thùng hàng**. Trạm mở lần lượt từ trái sang phải; trạm sau đắt hơn nhưng mỗi ly bán được nhiều hơn hẳn.
 
 ### Nâng cấp quán
 
-Nút **Nâng cấp** ở thanh dưới: danh sách mua một lần, dùng mãi ở chi nhánh đó. Có thuê thêm pha chế, tăng khách tới, nhân viên đi nhanh hơn, thêm chỗ chờ ở quầy, pha nhanh hơn, và các món bán gấp 2–3. Mua biển hiệu thì biển tên quán trên tường chuyển sang đèn neon.
+Nút **Nâng cấp** ở thanh dưới: danh sách mua một lần, dùng mãi ở chi nhánh đó. Có thuê thêm bạn gấu, tăng khách tới, nhân viên đi nhanh hơn, thêm chỗ chờ ở quầy, pha nhanh hơn, và các món bán gấp 2–3. Mua biển hiệu thì biển tên quán trên tường chuyển sang đèn neon.
 
 ### Nhiệm vụ và chuyển chi nhánh
 
 Mỗi chi nhánh có 12–14 nhiệm vụ (nâng trạm lên cấp nào đó, mở trạm, mua nâng cấp). Xong thì bấm **Nhận** để lấy thưởng. Nhận hết thưởng thì mở nút **Chuyển sang** chi nhánh kế tiếp:
 
 - Tiền, trạm và nâng cấp ở chi nhánh cũ để lại. Chi nhánh mới bắt đầu với vốn riêng, chỉ mở sẵn trạm đầu tiên.
-- Giữ nguyên tên quán và tổng số khách đã phục vụ.
+- Giữ nguyên tên quán và tổng số khách đã phục vụ. Gấu Nâu đi cùng, các bạn gấu khác thuê lại.
 - Chuỗi có 3 chi nhánh: **Góc Phố → Sân Vườn → Phố Cổ**, mỗi nơi 5 món, màu sàn và tường riêng. Xong Phố Cổ thì chơi tiếp ở đó.
 
 Nút **Quán** ở thanh dưới: đổi tên quán (tối đa 30 ký tự, có xúc xắc gợi ý tên), xem chuỗi chi nhánh và số liệu.
@@ -86,28 +106,28 @@ Tiền hiển thị theo k, tr, tỷ, nghìn tỷ. Người chơi mua tối ưu 
 
 | Nâng cấp | Giá | Tác dụng |
 |---|---|---|
-| Thuê pha chế thứ hai | 180k | Thêm một người pha |
+| Thuê Gấu Trúc | 180k | Thêm một bạn gấu pha chế |
 | Biển hiệu đèn neon | 1,8 tr | Khách tới nhiều hơn 30% |
 | Giày thể thao cho quán | 4,5 tr | Nhân viên đi nhanh hơn 30% |
 | Kê thêm chỗ đứng | 12 tr | Thêm một chỗ khách chờ ở quầy |
-| Thuê pha chế thứ ba | 36 tr | Thêm một người pha |
+| Thuê Gấu Trắng | 36 tr | Thêm một bạn gấu pha chế |
 | Hạt Robusta Cầu Đất | 90 tr | Cà phê đen bán gấp 3 |
 | Máy xay chuyên nghiệp | 150 tr | Pha nhanh hơn 30% |
 | Sữa đặc loại ngon | 300 tr | Cà phê sữa và bạc xỉu bán gấp 2 |
 | Mái hiên che nắng | 600 tr | Thêm một chỗ khách chờ ở quầy |
-| Thuê pha chế thứ tư | 1 tỷ | Thêm một người pha |
+| Thuê Gấu Mật | 1 tỷ | Thêm một bạn gấu pha chế |
 
 | Nhiệm vụ | Thưởng |
 |---|---|
 | Nâng Cà phê đen lên cấp 5 | 30k |
-| Thuê pha chế thứ hai | 100k |
+| Thuê Gấu Trúc | 100k |
 | Nâng Cà phê đen lên cấp 10 | 300k |
 | Mở trạm Cà phê sữa | 600k |
 | Nâng Cà phê sữa lên cấp 10 | 1,5 tr |
 | Biển hiệu đèn neon | 2 tr |
 | Mở trạm Bạc xỉu | 5 tr |
 | Nâng Cà phê đen lên cấp 25 | 10 tr |
-| Thuê pha chế thứ ba | 20 tr |
+| Thuê Gấu Trắng | 20 tr |
 | Mở trạm Trà đá | 40 tr |
 | Nâng Bạc xỉu lên cấp 25 | 100 tr |
 | Mở trạm Americano | 300 tr |
@@ -126,27 +146,27 @@ Tiền hiển thị theo k, tr, tỷ, nghìn tỷ. Người chơi mua tối ưu 
 
 | Nâng cấp | Giá | Tác dụng |
 |---|---|---|
-| Thuê pha chế thứ hai | 6 tr | Thêm một người pha |
+| Thuê Gấu Trúc | 6 tr | Thêm một bạn gấu pha chế |
 | Cổng hoa giấy | 75 tr | Khách tới nhiều hơn 30% |
 | Lối đi lát gạch | 180 tr | Nhân viên đi nhanh hơn 30% |
-| Thuê pha chế thứ ba | 450 tr | Thêm một người pha |
+| Thuê Gấu Trắng | 450 tr | Thêm một bạn gấu pha chế |
 | Thêm ghế đá | 900 tr | Thêm một chỗ khách chờ ở quầy |
 | Máy pha hai vòi | 3,6 tỷ | Pha nhanh hơn 30% |
 | Đào ngâm nhà làm | 9 tỷ | Trà đào bán gấp 3 |
-| Thuê pha chế thứ tư | 24 tỷ | Thêm một người pha |
+| Thuê Gấu Mật | 24 tỷ | Thêm một bạn gấu pha chế |
 | Mở thêm khoảnh sân | 60 tỷ | Thêm một chỗ khách chờ ở quầy |
 | Nhạc acoustic cuối tuần | 180 tỷ | Mọi món bán gấp 2 |
 
 | Nhiệm vụ | Thưởng |
 |---|---|
 | Nâng Latte lên cấp 10 | 3 tr |
-| Thuê pha chế thứ hai | 6 tr |
+| Thuê Gấu Trúc | 6 tr |
 | Mở trạm Cà phê muối | 20 tr |
 | Nâng Latte lên cấp 25 | 50 tr |
 | Cổng hoa giấy | 100 tr |
 | Mở trạm Trà đào | 250 tr |
 | Nâng Cà phê muối lên cấp 25 | 600 tr |
-| Thuê pha chế thứ ba | 1 tỷ |
+| Thuê Gấu Trắng | 1 tỷ |
 | Mở trạm Sinh tố bơ | 2,5 tỷ |
 | Nâng Trà đào lên cấp 25 | 6 tỷ |
 | Máy pha hai vòi | 10 tỷ |
@@ -167,27 +187,27 @@ Tiền hiển thị theo k, tr, tỷ, nghìn tỷ. Người chơi mua tối ưu 
 
 | Nâng cấp | Giá | Tác dụng |
 |---|---|---|
-| Thuê pha chế thứ hai | 300 tr | Thêm một người pha |
+| Thuê Gấu Trúc | 300 tr | Thêm một bạn gấu pha chế |
 | Đèn lồng Hội An | 3,6 tỷ | Khách tới nhiều hơn 30% |
 | Cầu thang mới | 9 tỷ | Nhân viên đi nhanh hơn 30% |
-| Thuê pha chế thứ ba | 24 tỷ | Thêm một người pha |
+| Thuê Gấu Trắng | 24 tỷ | Thêm một bạn gấu pha chế |
 | Ghế đẩu vỉa hè | 45 tỷ | Thêm một chỗ khách chờ ở quầy |
 | Trứng gà ta | 150 tỷ | Cà phê trứng bán gấp 3 |
 | Máy rang tại chỗ | 450 tỷ | Pha nhanh hơn 30% |
-| Thuê pha chế thứ tư | 1,2 nghìn tỷ | Thêm một người pha |
+| Thuê Gấu Mật | 1,2 nghìn tỷ | Thêm một bạn gấu pha chế |
 | Mở tầng hai | 3 nghìn tỷ | Thêm một chỗ khách chờ ở quầy |
 | Lên sách hướng dẫn du lịch | 9 nghìn tỷ | Mọi món bán gấp 2 |
 
 | Nhiệm vụ | Thưởng |
 |---|---|
 | Nâng Cà phê trứng lên cấp 10 | 150 tr |
-| Thuê pha chế thứ hai | 300 tr |
+| Thuê Gấu Trúc | 300 tr |
 | Mở trạm Cà phê cốt dừa | 1 tỷ |
 | Nâng Cà phê trứng lên cấp 25 | 2,5 tỷ |
 | Đèn lồng Hội An | 5 tỷ |
 | Mở trạm Cold brew | 12 tỷ |
 | Nâng Cà phê cốt dừa lên cấp 25 | 30 tỷ |
-| Thuê pha chế thứ ba | 50 tỷ |
+| Thuê Gấu Trắng | 50 tỷ |
 | Mở trạm Cappuccino | 120 tỷ |
 | Nâng Cold brew lên cấp 25 | 300 tỷ |
 | Máy rang tại chỗ | 500 tỷ |
@@ -239,10 +259,11 @@ Xem chi tiết từng mốc thưởng: `node tools/balance.mjs`.
 ```
 index.html          trang game, importmap trỏ Three.js
 style.css           giao diện
-src/data.js         số liệu: chi nhánh, trạm, nâng cấp, nhiệm vụ, bố cục quán, cấu hình kinh tế
+src/data.js         số liệu: chi nhánh, trạm, nâng cấp, nhiệm vụ, đội gấu, bố cục quán, cấu hình kinh tế
 src/logic.js        luật chơi thuần, không dính DOM hay 3D: cấp trạm, derived(), mô phỏng khách và nhân viên,
                     ước lượng thu nhập, nhiệm vụ, chuyển quán, cờ hướng dẫn (kiểm thử được bằng Node)
-src/scene.js        cảnh 3D: phòng theo màu chi nhánh, quầy, trạm và thùng hàng, người, biển hiệu, hạt hiệu ứng, máy quay
+src/scene.js        cảnh 3D: phòng pastel theo màu chi nhánh, cờ dây, quầy, trạm và thùng hàng, biển hiệu, hạt hiệu ứng, máy quay
+src/chars.js        nhân vật: bốn bạn gấu và khách chibi, khuôn mặt đổi biểu cảm, bộ động tác
 src/props.js        mô hình đồ vật: ly mang đi, máy espresso, lon, hộp sữa, ấm, thùng đá, chai siro, bát kem, máy tính tiền
 src/game.js         điều phối: vòng lặp, thanh trên, nhãn trạm, bảng trượt, chuyển quán, tiền vắng mặt, hướng dẫn
 src/ui.js           phản hồi DOM dùng chung: icon SVG, thông báo, chữ bay, xu bay, pháo giấy, hộp thoại

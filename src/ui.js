@@ -37,6 +37,18 @@ export function drinkIcon(c, ice) {
     : '<path d="M12 5.5c-1.6-1.4 1.6-2.4 0-4M16.5 5.5c-1.6-1.4 1.6-2.4 0-4M21 5.5c-1.6-1.4 1.6-2.4 0-4" fill="none" stroke="#b39a88" stroke-width="1.6" stroke-linecap="round"/>';
   return `<svg class="dic" viewBox="0 0 32 36"><path d="M6 8.5h20l-2.3 23.6a3 3 0 0 1-3 2.7h-9.4a3 3 0 0 1-3-2.7z" fill="#fff" stroke="${K}" stroke-width="2" stroke-linejoin="round"/><path d="M7.7 13.2h16.6l-1.8 18.6a1.8 1.8 0 0 1-1.8 1.6h-9.4a1.8 1.8 0 0 1-1.8-1.6z" fill="${c}"/>${temp}<rect x="4.5" y="7" width="23" height="3.4" rx="1.6" fill="${K}"/></svg>`;
 }
+// Mặt gấu dạng icon cho danh sách đội gấu và nâng cấp thuê gấu.
+const BEAR_SVG = {
+  brown: { fur: '#9b6a45', ear: '#8a5c3a', muz: '#f0cfa8', acc: `<path d="M6.5 8.5a5.5 4.5 0 0 1 11 0z" fill="#e25b4a" stroke="${K}" stroke-width="1.4"/><rect x="11" y="7.2" width="8" height="2.2" rx="1.1" fill="#e25b4a" stroke="${K}" stroke-width="1.2"/>` },
+  panda: { fur: '#fbf8f3', ear: '#2e2c30', muz: '#ffffff', patch: true, acc: `<path d="M17 4.5l3.5-1.8v4.2zM17 4.5l-3.2-1.8v3.8z" fill="#ff8fb1" stroke="${K}" stroke-width="1"/>` },
+  white: { fur: '#f6f8fb', ear: '#eef1f5', muz: '#ffffff', acc: `<path d="M5 20.5c3 1.8 11 1.8 14 0v2H5z" fill="#5aa9e6" stroke="${K}" stroke-width="1.2"/>` },
+  honey: { fur: '#e0a94a', ear: '#d29a3c', muz: '#fbe3b6', acc: `<ellipse cx="14" cy="4.2" rx="3" ry="1.3" fill="#7fb069" stroke="${K}" stroke-width="1" transform="rotate(-25 14 4.2)"/>` },
+};
+export function bearIcon(kind) {
+  const b = BEAR_SVG[kind] || BEAR_SVG.brown;
+  const patch = b.patch ? '<ellipse cx="9" cy="12.2" rx="2.2" ry="2.8" fill="#2e2c30" transform="rotate(20 9 12.2)"/><ellipse cx="15" cy="12.2" rx="2.2" ry="2.8" fill="#2e2c30" transform="rotate(-20 15 12.2)"/>' : '';
+  return `<svg viewBox="0 0 24 24"><circle cx="5.5" cy="6.5" r="3" fill="${b.ear}" stroke="${K}" stroke-width="1.4"/><circle cx="18.5" cy="6.5" r="3" fill="${b.ear}" stroke="${K}" stroke-width="1.4"/><ellipse cx="12" cy="13" rx="8.5" ry="7.8" fill="${b.fur}" stroke="${K}" stroke-width="1.6"/>${patch}<circle cx="9" cy="12" r="1.2" fill="${K}"/><circle cx="15" cy="12" r="1.2" fill="${K}"/><circle cx="9.4" cy="11.6" r=".4" fill="#fff"/><circle cx="15.4" cy="11.6" r=".4" fill="#fff"/><ellipse cx="12" cy="16" rx="3" ry="2.2" fill="${b.muz}" stroke="${K}" stroke-width="1"/><ellipse cx="12" cy="15.1" rx="1.1" ry=".8" fill="${K}"/><circle cx="6.8" cy="15.2" r="1.2" fill="#ff8fa3" opacity=".7"/><circle cx="17.2" cy="15.2" r="1.2" fill="#ff8fa3" opacity=".7"/>${b.acc}</svg>`;
+}
 export const starsHTML = (n, max = 5, cls = '') => `<span class="stars ${cls}">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? 'on' : ''}">${ICON.star}</i>`).join('')}</span>`;
 
 /* ---------- thông báo, chữ bay, xu bay, pháo giấy ---------- */

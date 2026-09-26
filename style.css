@@ -93,7 +93,7 @@ svg { display: block; }
 .sh-t h3 { margin: 0; font-size: 20px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sh-t small { font-size: 13px; color: var(--soft); font-weight: 700; }
 .x { flex: none; width: 44px; height: 44px; border-radius: 12px; background: #f1e4d0; border: 2.5px solid var(--ink); box-shadow: var(--shadow-sm); font-size: 18px; font-weight: 800; }
-.list { overflow-y: auto; flex: 1; min-height: 60px; }
+.list { overflow-y: auto; flex: 1; min-height: 60px; padding-right: 8px; }
 .muted { color: var(--soft); }
 .small { font-size: 13px; }
 .note { display: flex; align-items: center; gap: 8px; justify-content: center; padding: 10px; border-radius: 14px; background: #f1e4d0; font-weight: 700; }
@@ -129,7 +129,8 @@ button.big.bump { animation: bump .25s var(--ease-pop); }
 .row .nm small { display: block; font-size: 12px; color: var(--soft); }
 .row.owned { opacity: .55; }
 .ric { width: 36px; height: 36px; flex: none; }
-.row em { flex: none; display: flex; align-items: center; gap: 4px; font-style: normal; font-size: 13px; font-weight: 800; }
+.subh { margin: 8px 0 0; font-size: 13px; font-weight: 800; color: var(--soft); text-transform: uppercase; letter-spacing: .04em; }
+.row em { flex: none; display: flex; align-items: center; gap: 4px; font-style: normal; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .row em svg { width: 20px; height: 20px; }
 em.ok { color: var(--mint-d); } em.here { color: var(--red); } em.lk { opacity: .6; }
 .own { color: var(--mint); font-weight: 800; }

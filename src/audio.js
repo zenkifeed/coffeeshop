@@ -83,6 +83,8 @@ export const sfx = {
   lvl: i => { const f = jit(note(i), 0.01); tone(f, 0.12, { type: 'triangle', vol: 0.16, slide: 1.12 }); tone(f * 2, 0.05, { type: 'sine', vol: 0.05 }); },
   // tiền khách trả: nhỏ và khẽ vì vang lên liên tục, lệch cao độ để không nhàm
   cash: () => { const k = 1 + (Math.random() - 0.5) * 0.12; tone(1319 * k, 0.06, { type: 'square', vol: 0.025 }); tone(1760 * k, 0.1, { type: 'square', vol: 0.02, delay: 0.045 }); },
+  // tiếng "bíp" dễ thương khi chạm vào gấu: hai nốt trượt lên
+  boop: () => { tone(jit(620, 0.06), 0.09, { type: 'sine', vol: 0.18, slide: 1.6 }); tone(jit(990, 0.06), 0.1, { type: 'sine', vol: 0.12, slide: 1.4, delay: 0.08 }); },
   meh: () => tone(jit(392), 0.2, { type: 'triangle', vol: 0.14, slide: 0.85 }),
   coin: (n = 0) => { const k = 1 + Math.min(n, 8) * 0.06; tone(988 * k, 0.07, { type: 'square', vol: 0.08 }); tone(1319 * k, 0.22, { type: 'square', vol: 0.08, delay: 0.06 }); },
   tick: () => tone(jit(1760, 0.08), 0.04, { type: 'square', vol: 0.03 }),

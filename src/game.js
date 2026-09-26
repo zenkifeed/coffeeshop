@@ -1,6 +1,6 @@
 // Điều phối: vòng mô phỏng, thanh trên, nhãn trạm, bảng trượt (trạm, nâng cấp, nhiệm vụ, quán),
 // chuyển quán, tiền lúc vắng mặt, lưu và hướng dẫn. Luật chơi nằm ở logic.js, phần vẽ 3D ở scene.js.
-import { CFG, SHOPS } from './data.js';
+import { CFG, SHOPS, BEARS } from './data.js';
 import * as L from './logic.js';
 import { createScene } from './scene.js';
 import { sfx, unlock as audioUnlock, setSfx, pauseAudio } from './audio.js';
@@ -8,7 +8,7 @@ import { Music } from './music.js';
 import { opts, saveOpts, haptic } from './feel.js';
 import * as SV from './save.js';
 import { Coach } from './coach.js';
-import { $, esc, ICON, drinkIcon, starsHTML, toast, floatText, flash, punchEl, retrigger, centerOf, coinFly, domBurst, countUp, modal, modalOpen } from './ui.js';
+import { $, esc, ICON, bearIcon, drinkIcon, starsHTML, toast, floatText, flash, punchEl, retrigger, centerOf, coinFly, domBurst, countUp, modal, modalOpen } from './ui.js';
 
 const fmt = L.fmt;
 const hex = c => parseInt(c.slice(1), 16);
@@ -27,7 +27,13 @@ const scene = createScene($('c'), {
   onTap: p => {
     audioUnlock();
     if (p.station) { openSheet('station', p.station); sfx.ui(); haptic('tap'); }
-    else if (p.cust != null) scene.bounceCust(p.cust);
+    else if (p.staff != null) {
+      // chạm vào gấu: gấu vẫy chào, bắn tim nhỏ
+      scene.emote({ staff: p.staff }, 'wave');
+      scene.burstAt({ staff: p.staff, head: true }, 'heart', 2);
+      sfx.boop();
+      haptic('tap');
+    } else if (p.cust != null) { scene.emote({ cust: p.cust }, 'wave'); sfx.boop(); }
   },
 });
 setSfx(opts.sound);
@@ -159,14 +165,16 @@ function handle(ev) {
     if (e.k === 'serve') {
       const hp = e.c && scene.headScreen(e.c.id);
       if (hp) { floatText(hp.x, hp.y - 4, '+' + fmt(e.amt), 'money sm'); coinFly(hp.x, hp.y, 1, true); }
-      if (e.c) scene.burstAt({ cust: e.c.id }, 'coin', 3);
+      scene.emote({ staff: e.s.id }, 'serve');
+      if (e.c) { scene.burstAt({ cust: e.c.id }, 'coin', 3); scene.emote({ cust: e.c.id }, 'love'); scene.burstAt({ cust: e.c.id, head: true }, 'heart', 2); }
       sfx.cash();
     } else if (e.k === 'brew') scene.press(e.st, 0.1);
     else if (e.k === 'hire') {
       // người mới chỉ có trong cảnh sau lần đồng bộ kế tiếp
-      setTimeout(() => { scene.popPerson(e.s.id); scene.burstAt({ staff: e.s.id, head: true }, 'confetti', 16); }, 40);
+      const b = BEARS[W.staff.indexOf(e.s) % BEARS.length];
+      setTimeout(() => { scene.emote({ staff: e.s.id }, 'cheer', { spin: true }); scene.burstAt({ staff: e.s.id, head: true }, 'confetti', 16); scene.burstAt({ staff: e.s.id, head: true }, 'heart', 4); }, 40);
       sfx.bell();
-      toast('Pha chế mới đã vào ca');
+      toast(`<b>${b.n}</b> đã vào ca!`);
     }
   }
 }
@@ -277,7 +285,7 @@ function updStation() {
   $('stP').textContent = fmt(L.profitOf(S, id, lv, D));
   $('stPn').textContent = b.n ? '→ ' + fmt(L.profitOf(S, id, lv + b.n, D)) : '';
   $('stT').textContent = num1(L.prepOf(S, id, D)) + ' giây';
-  $('stC').textContent = L.capAt(lv) + ' người';
+  $('stC').textContent = L.capAt(lv) + ' bạn gấu';
   $('stBuyT').textContent = b.n ? `Nâng +${b.n} cấp` : 'Đã tối đa';
   $('stBuyC').textContent = b.n ? fmt(b.cost) : '';
   $('stBuy').classList.toggle('dis', !b.n || S.money < b.cost);
@@ -320,7 +328,7 @@ function doBuy(id) {
   if (btn) { retrigger(btn, 'bump'); const [x, y] = centerOf(btn); floatText(x + (Math.random() - 0.5) * 60, y - 26, `+${b.n} cấp`, 'good small'); }
   if (gained > 0) milestone(id, lv);
   else scene.celebrateStation(id, false);
-  if (L.capAt(lv) > cap0) setTimeout(() => toast(`${esc(L.stDef(S, id).n)}: thêm một chỗ pha, ${L.capAt(lv)} người pha cùng lúc`), 500);
+  if (L.capAt(lv) > cap0) setTimeout(() => toast(`${esc(L.stDef(S, id).n)}: thêm một chỗ pha, ${L.capAt(lv)} bạn gấu pha cùng lúc`), 500);
   updStation();
   labelText();
   save();
@@ -333,6 +341,7 @@ function milestone(id, lv) {
   haptic('reward');
   flash('good');
   scene.celebrateStation(id, true);
+  scene.cheerAll();
   const st = $('stStars');
   if (st) { const [x, y] = centerOf(st); domBurst(x, y, 22); punchEl(st); }
   toast(`<b>${esc(d.n)}</b> lên cấp ${lv}: tiền mỗi ly ×2!`);
@@ -356,7 +365,10 @@ function doUnlock(id, btn) {
 /* ----- bảng nâng cấp quán ----- */
 function sheetUpg() {
   const list = L.upgList(S), owned = shop().upgrades.filter(u => S.upg[u.id]);
-  const row = (u, own) => `<div class="row${own ? ' owned' : ''}"><i class="ric">${ICON[u.fx]}</i><div class="nm"><b>${esc(u.n)}</b><small>${esc(u.d)}</small></div>${own ? '<span class="own">Đã có</span>' : `<button class="pri buyu${S.money < u.cost ? ' dis' : ''}" data-u="${u.id}" data-quiet>${fmt(u.cost)}</button>`}</div>`;
+  const hires = shop().upgrades.filter(x => x.fx === 'staff');
+  // nâng cấp thuê gấu hiện mặt đúng bạn gấu sẽ vào ca
+  const icon = u => u.fx === 'staff' ? bearIcon(BEARS[(hires.indexOf(u) + 1) % BEARS.length].id) : ICON[u.fx];
+  const row = (u, own) => `<div class="row${own ? ' owned' : ''}"><i class="ric">${icon(u)}</i><div class="nm"><b>${esc(u.n)}</b><small>${esc(u.d)}</small></div>${own ? '<span class="own">Đã có</span>' : `<button class="pri buyu${S.money < u.cost ? ' dis' : ''}" data-u="${u.id}" data-quiet>${fmt(u.cost)}</button>`}</div>`;
   return head(ICON.arrowUp, 'Nâng cấp quán', `Mua một lần, dùng mãi ở ${esc(shop().n)}`) +
     `<div class="list">${list.map(u => row(u, false)).join('')}${owned.map(u => row(u, true)).join('')}</div>`;
 }
@@ -416,7 +428,7 @@ function bindTasks() {
 function askMove() {
   const next = SHOPS[S.shop + 1];
   modal(`<div class="wel-hero">${ICON.shop}</div><h2>Chuyển sang ${esc(next.n)}?</h2><p>${esc(next.d)}</p>
-    <p class="muted small">Tiền, trạm và nâng cấp ở ${esc(shop().n)} để lại. Bạn bắt đầu chi nhánh mới với <b>${fmt(next.start)}</b> và 5 món mới.</p>`,
+    <p class="muted small">Gấu Nâu đi cùng bạn, các bạn gấu khác thuê lại ở chi nhánh mới. Tiền, trạm và nâng cấp ở ${esc(shop().n)} để lại. Bạn bắt đầu chi nhánh mới với <b>${fmt(next.start)}</b> và 5 món mới.</p>`,
   [['Ở lại thêm', () => {}], [`Chuyển sang ${esc(next.n)}`, doMove, 1]], 'welcome');
 }
 function doMove() {
@@ -445,19 +457,25 @@ function doMove() {
         <p class="muted small">Món ở đây: ${sh.stations.map(s => esc(s.n)).join(', ')}.</p>`, [['Mở cửa!', () => {}, 1]], 'welcome');
       domBurst(innerWidth / 2, innerHeight / 2, 34);
       sfx.perfect();
+      setTimeout(scene.cheerAll, 200);
     }, 650);
   }, 950);
 }
 
 /* ----- bảng quán: tên, chuỗi chi nhánh, số liệu ----- */
 function sheetShop() {
+  const hired = L.derived(S).staff, hire = shop().upgrades.filter(u => u.fx === 'staff');
+  const team = BEARS.slice(0, 1 + hire.length).map((b, i) => {
+    const st = i < hired ? '<em class="ok">Đang làm</em>' : `<em class="lk">${ICON.lock} ${fmt(hire[i - 1].cost)}</em>`;
+    return `<div class="row${i < hired ? '' : ' owned'}"><i class="ric">${bearIcon(b.id)}</i><div class="nm"><b>${esc(b.n)}</b><small>${esc(b.d)}</small></div>${st}</div>`;
+  }).join('');
   const chain = SHOPS.map((sh, i) => {
     const st = i < S.shop ? `<em class="ok">${ICON.check} Đã xong</em>` : i === S.shop ? '<em class="here">Đang ở đây</em>' : `<em class="lk">${ICON.lock}</em>`;
     return `<div class="row${i > S.shop ? ' owned' : ''}"><div class="nm"><b>${esc(sh.n)}</b><small>${esc(sh.d)}</small></div>${st}</div>`;
   }).join('');
   return head(ICON.shop, esc(S.shopName || 'Quán Cà Phê Nhỏ'), 'Chi nhánh ' + esc(shop().n), `<button class="ghost ren" id="rename">${ICON.pencil}Đổi tên</button>`) +
     `<div class="stats"><div><small>Khách ở đây</small><b>${S.served.toLocaleString('vi-VN')}</b></div><div><small>Tiền kiếm ở đây</small><b>${fmt(S.earned)}</b></div><div><small>Tổng khách</small><b>${S.life.served.toLocaleString('vi-VN')}</b></div></div>
-     <div class="list">${chain}</div>`;
+     <div class="list"><h4 class="subh">Đội gấu</h4>${team}<h4 class="subh">Chuỗi chi nhánh</h4>${chain}</div>`;
 }
 function bindShop() { $('rename').onclick = renameDlg; }
 
@@ -641,8 +659,8 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 function welcomeDlg(next) {
   const old = R.legacy;
   modal(`<div class="wel-hero">${drinkIcon('#8a5a3b', true)}</div><h2>${old ? 'Quán đã đổi cách chơi!' : 'Chào mừng tới quán!'}</h2>
-    ${old ? `<p class="muted small">Giờ bạn là chủ chuỗi quán: nhân viên tự pha, bạn lo nâng cấp và mở rộng.${old.shopName ? ` Tên quán <b>${esc(old.shopName)}</b> vẫn giữ nguyên.` : ''}</p>` : ''}
-    <ol class="how wel"><li><b>Nhân viên tự pha và bán</b>: khách tới, pha chế làm món, tiền tự vào két.</li><li><b>Chạm vào trạm pha</b> để nâng cấp. Tới cấp 10, 25, 50, 75, 100 thì tiền mỗi ly gấp đôi.</li><li><b>Làm nhiệm vụ</b> để chuyển sang chi nhánh mới, lớn hơn.</li></ol>`,
+    ${old ? `<p class="muted small">Giờ bạn là chủ chuỗi quán: các bạn gấu tự pha, bạn lo nâng cấp và mở rộng.${old.shopName ? ` Tên quán <b>${esc(old.shopName)}</b> vẫn giữ nguyên.` : ''}</p>` : ''}
+    <ol class="how wel"><li><b>Các bạn gấu tự pha và bán</b>: khách tới, gấu làm món, tiền tự vào két. Chạm vào gấu để chào nhé!</li><li><b>Chạm vào trạm pha</b> để nâng cấp. Tới cấp 10, 25, 50, 75, 100 thì tiền mỗi ly gấp đôi.</li><li><b>Làm nhiệm vụ</b> để chuyển sang chi nhánh mới, lớn hơn.</li></ol>`,
   [['Chỉ mình cách chơi', () => { S.ftue.welcomed = true; L.checkTuts(S); save(); next(); }, 1],
     ['Bỏ qua, mình tự chơi', () => { Object.assign(S.ftue, { welcomed: true, skip: true }); L.checkTuts(S); save(); next(); }]], 'welcome');
 }

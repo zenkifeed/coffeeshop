@@ -2,15 +2,14 @@
 // Cảnh chỉ vẽ: vị trí khách và nhân viên đọc từ thế giới mô phỏng W (logic.js) mỗi khung hình,
 // trạm dựng theo số liệu của quán. game.js gọi vào các hàm bên dưới và nhận lại sự kiện chạm qua `handlers`.
 import * as THREE from 'three';
-import { LAYOUT } from './data.js';
+import { LAYOUT, BEARS } from './data.js';
 import { motionScale } from './feel.js';
 import * as P from './props.js';
+import { buildBear, buildKid, animBear, animKid, emote as emoteActor, newActor, heartGeometry, BEAR_HEAD, BEAR_CARRY, KID_HEAD, KID_HAND } from './chars.js';
 
 const TOP_FRONT = 0.95, TOP_BACK = 0.95;
-const HAND = new THREE.Vector3(0.28, 0.72, 0.18), HEAD = new THREE.Vector3(0, 1.72, 0), CARRY = new THREE.Vector3(0, 0.95, 0.3);
-const STAFF_LOOK = { skin: 0xe8b894, shirt: 0xfff8ee, pants: 0x3a2317, hair: 0x2b1d14, apron: 0x8a5a3b, cap: true, h: 1 };
 
-const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0, flatShading: true, ...o });
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, ...o });
 function mesh(geo, m, x = 0, y = 0, z = 0, parent) {
   const me = new THREE.Mesh(geo, m);
   me.position.set(x, y, z);
@@ -221,13 +220,14 @@ export function createScene(canvas, handlers) {
   }
 
   /* ---------- hạt: một pool dựng sẵn, không cấp phát gì trong lúc chơi ---------- */
-  const PGEO = { coin: new THREE.CylinderGeometry(0.055, 0.055, 0.016, 12), orb: new THREE.SphereGeometry(0.045, 8, 6), paper: new THREE.PlaneGeometry(0.08, 0.045), star: starGeometry(), chip: new THREE.BoxGeometry(0.09, 0.02, 0.07) };
+  const PGEO = { coin: new THREE.CylinderGeometry(0.055, 0.055, 0.016, 12), orb: new THREE.SphereGeometry(0.045, 8, 6), paper: new THREE.PlaneGeometry(0.08, 0.045), star: starGeometry(), chip: new THREE.BoxGeometry(0.09, 0.02, 0.07), heart: heartGeometry() };
   const PMAT = {
     coin: new THREE.MeshStandardMaterial({ color: 0xf5c542, metalness: 0.55, roughness: 0.3, emissive: 0x7a5200, emissiveIntensity: 0.4 }),
     spark: new THREE.MeshBasicMaterial({ color: 0xfff1c4, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
     star: new THREE.MeshBasicMaterial({ color: 0xffd23f, side: THREE.DoubleSide }),
     steam: new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }),
     crate: new THREE.MeshStandardMaterial({ color: 0xc9955f, roughness: 0.8 }),
+    heart: new THREE.MeshBasicMaterial({ color: 0xff6b8b, side: THREE.DoubleSide }),
     confetti: [0xe25b4a, 0xf0b43c, 0x4fa883, 0x5aa9e6, 0xef6f8e, 0x9b6bd1].map(c => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })),
   };
   const parts = Array.from({ length: 260 }, () => {
@@ -245,6 +245,7 @@ export function createScene(canvas, handlers) {
     star: { geo: 'star', mat: 'star', life: 0.9, grav: -3, drag: 1.2, s0: 1.6, v: () => [rr() * 1.4, 2.2 + Math.random(), rr() * 0.6 + 0.8], spin: 8 },
     confetti: { geo: 'paper', mat: 'confetti', life: 1.7, grav: -5, drag: 1.4, s0: 1.3, v: () => [rr() * 2.4, 3 + Math.random() * 2.4, rr() * 2 + 0.5], spin: 14 },
     steam: { geo: 'orb', mat: 'steam', life: 0.95, grav: 0, drag: 0.6, s0: 1.1, grow: true, v: () => [rr() * 0.15, 0.55 + Math.random() * 0.35, rr() * 0.15], spin: 0 },
+    heart: { geo: 'heart', mat: 'heart', life: 1.1, grav: 0.8, drag: 1.6, s0: 1.4, v: () => [rr() * 0.5, 1.2 + Math.random() * 0.6, 0.3], spin: 0, face: true },
     crate: { geo: 'chip', mat: 'crate', life: 0.9, grav: -9, drag: 0.4, s0: 1.4, v: () => [rr() * 2.2, 2.5 + Math.random() * 2, rr() * 1.6 + 0.4], spin: 16 },
   };
   function burst(kind, pos, n) {
@@ -256,7 +257,7 @@ export function createScene(canvas, handlers) {
       p.m.geometry = PGEO[K.geo];
       p.m.material = K.mat === 'confetti' ? PMAT.confetti[(Math.random() * 6) | 0] : PMAT[K.mat];
       p.m.position.set(pos.x + rr() * 0.05, pos.y, pos.z + rr() * 0.05);
-      p.m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+      if (K.face) p.m.rotation.set(-0.5, 0, rr() * 0.4); else p.m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
       p.vel.set(...K.v());
       p.spin.set(rr() * K.spin, rr() * K.spin, rr() * K.spin);
       Object.assign(p, { t: 0, life: K.life * (0.8 + Math.random() * 0.4), grav: K.grav, drag: K.drag, s0: K.s0 * (0.75 + Math.random() * 0.5), grow: !!K.grow });
@@ -271,7 +272,8 @@ export function createScene(canvas, handlers) {
     if (where.station) { const s = stations.get(where.station); if (s) p = s.group.localToWorld(tv.set(0, 0.6, 0.1)); }
     else {
       const m = where.cust != null ? custs.get(where.cust) : staff.get(where.staff);
-      if (m) p = m.g.localToWorld(tv.copy(where.head ? HEAD : HAND));
+      const bear = where.staff != null;
+      if (m) p = m.g.localToWorld(tv.copy(where.head ? (bear ? BEAR_HEAD : KID_HEAD) : (bear ? BEAR_CARRY : KID_HAND)));
     }
     if (p) burst(kind, p, n);
   }
@@ -280,33 +282,35 @@ export function createScene(canvas, handlers) {
   const custs = new Map(), staff = new Map();
   const people = new THREE.Group();
   scene.add(people);
+  let apron = 0xff8fa3;
   function holdCup(m, color) {
     if (m.cup) m.g.remove(m.cup);
     m.cup = null;
     if (color == null) return;
     m.cup = P.buildTakeaway(drinkMat(color));
-    m.cup.scale.setScalar(1.2);
+    m.cup.scale.setScalar(1.15);
+    m.cup.position.copy(m.kind === 'kid' ? KID_HAND : BEAR_CARRY);
     m.g.add(m.cup);
   }
   const lookFor = seed => {
     const r = k => { const x = Math.sin(seed * 9973 + k * 131.7) * 43758.5453; return x - Math.floor(x); };
     const pick = (arr, k) => arr[Math.floor(r(k) * arr.length)];
     return {
-      skin: pick([0xf5d0b0, 0xe8b894, 0xd29a6e, 0xa8744f], 1),
-      shirt: pick([0xe25b4a, 0x5aa9e6, 0x7fb069, 0xf0b43c, 0x9b6bd1, 0xef6f8e, 0x4fa883, 0x3d5a80], 2),
-      pants: pick([0x2d3142, 0x4a4e69, 0x6b4a36, 0x1f2a44], 3),
-      hair: pick([0x2b1d14, 0x4a2c1a, 0x111111, 0x8a5a3b, 0xd9a441], 4),
+      skin: pick([0xfde0c8, 0xf5d0b0, 0xe8b894, 0xc98f63], 1),
+      shirt: pick([0xff8fa3, 0x8fd3c1, 0xa0c4ff, 0xffd166, 0xc3a6ff, 0xffb4a2, 0x9ed39a], 2),
+      pants: pick([0x5b6c8f, 0x7a6a8f, 0x8a6a4f, 0x4a5a78], 3),
+      hair: pick([0x3a2317, 0x5a3a24, 0x2b2b2e, 0xc9884f, 0xe9c46a], 4),
       bun: r(5) < 0.4,
-      h: 0.9 + r(6) * 0.2,
     };
   };
-  function addPerson(map, id, look, e, pick) {
-    const g = buildPerson(look);
-    g.position.set(e.x, 0, e.z);
-    g.rotation.y = e.face;
-    if (pick) { g.userData.cust = id; pickables.push(g); }
-    people.add(g);
-    const m = { g, body: g.children[0], sp: spring(), t: Math.random() * 5, cup: null, carry: null };
+  // pickKey: userData để chạm vào nhận ra khách ('cust') hay gấu ('staff')
+  function addActor(map, id, built, e, pickKey) {
+    const m = newActor(built, (id * 7.31) % 10);
+    m.g.position.set(e.x, 0, e.z);
+    m.g.rotation.y = e.face;
+    m.g.userData[pickKey] = id;
+    pickables.push(m.g);
+    people.add(m.g);
     map.set(id, m);
     return m;
   }
@@ -319,50 +323,47 @@ export function createScene(canvas, handlers) {
     map.delete(id);
   }
   function clearPeople() { [...custs.keys()].forEach(id => dropPerson(custs, id)); [...staff.keys()].forEach(id => dropPerson(staff, id)); }
-  function popPerson(map, id, a = 0.35) { const m = map.get(id); if (m) m.sp.v = -a * motionScale; }
   // Đọc W: thêm người mới, bỏ người đã đi, đặt vị trí và góc quay. colorOf(st) → màu ly của món.
+  // Gấu thứ i trong quán mặc bộ thứ i trong BEARS (gấu nâu, gấu trúc, gấu trắng, gấu mật).
   function sync(W, colorOf, dt) {
     const seen = new Set();
     for (const c of W.cust) {
       seen.add(c.id);
-      const m = custs.get(c.id) || addPerson(custs, c.id, lookFor(c.seed), c, true);
+      const m = custs.get(c.id) || addActor(custs, c.id, buildKid(lookFor(c.seed)), c, 'cust');
       place(m, c, dt);
       if (c.state === 'got' && !m.cup) holdCup(m, colorOf(c.st));
     }
     [...custs.keys()].forEach(id => { if (!seen.has(id)) dropPerson(custs, id); });
     seen.clear();
-    for (const s of W.staff) {
+    W.staff.forEach((s, i) => {
       seen.add(s.id);
-      const m = staff.get(s.id) || addPerson(staff, s.id, STAFF_LOOK, s, false);
+      const m = staff.get(s.id) || addActor(staff, s.id, buildBear(BEARS[i % BEARS.length].id, apron), s, 'staff');
       place(m, s, dt);
       if (m.carry !== s.carry) { m.carry = s.carry; holdCup(m, s.carry ? colorOf(s.carry) : null); }
       m.brewing = s.state === 'brew' ? s.job.st : null;
-    }
+    });
     [...staff.keys()].forEach(id => { if (!seen.has(id)) dropPerson(staff, id); });
   }
   function place(m, e, dt) {
     m.g.position.x = e.x;
     m.g.position.z = e.z;
-    m.g.rotation.y = turn(m.g.rotation.y, e.face, 1 - Math.exp(-dt * 12));
+    // gấu rảnh tay (đưa ly xong) thì quay mặt ra phía người chơi, để luôn thấy biểu cảm
+    const face = e.state === 'idle' && m.kind !== 'kid' && !(m.emote && m.emote.k === 'serve') ? 0 : e.face;
+    m.g.rotation.y = turn(m.g.rotation.y, face, 1 - Math.exp(-dt * (face === e.face ? 12 : 5)));
     m.moving = e.moving;
   }
   function animPeople(dt) {
-    const step = (m, id) => {
-      m.t += dt;
-      stepSpring(m.sp, dt);
-      if (m.moving) {
-        m.g.position.y = Math.abs(Math.sin(m.t * 11)) * 0.05 * motionScale;
-        m.body.rotation.z = Math.sin(m.t * 11) * 0.06 * motionScale;
-      } else {
-        m.g.position.y = 0;
-        m.body.rotation.z = m.brewing ? Math.sin(m.t * 14) * 0.03 * motionScale : 0;
-      }
-      squash(m.body, m.sp.v + (m.moving ? 0 : Math.sin(m.t * 2.2 + id) * 0.012));
-      if (m.cup) m.cup.position.copy(m.carry ? CARRY : HAND);
-    };
-    custs.forEach(step);
-    staff.forEach(step);
+    custs.forEach(m => animKid(m, dt));
+    staff.forEach(m => animBear(m, dt));
   }
+  // where: { staff } | { cust }; k: 'serve' | 'cheer' | 'wave' | 'love' | ...
+  function emote(where, k, opts) {
+    const m = where.staff != null ? staff.get(where.staff) : custs.get(where.cust);
+    if (!m) return;
+    emoteActor(m, k, opts);
+    m.sp.v = -0.25 * motionScale;
+  }
+  function cheerAll() { staff.forEach(m => emoteActor(m, 'cheer')); }
 
   /* ---------- máy quay: thở, rung (mô hình trauma), đẩy ống kính ---------- */
   const camBase = new THREE.Vector3(), camTarget = new THREE.Vector3();
@@ -379,8 +380,8 @@ export function createScene(canvas, handlers) {
     const hits = ray.intersectObjects(pickables, true);
     for (const h of hits) {
       let o = h.object;
-      while (o && o.userData.station == null && o.userData.cust == null) o = o.parent;
-      if (o) return o.userData.station != null ? { station: o.userData.station } : { cust: o.userData.cust };
+      while (o && o.userData.station == null && o.userData.cust == null && o.userData.staff == null) o = o.parent;
+      if (o) return o.userData.station != null ? { station: o.userData.station } : o.userData.staff != null ? { staff: o.userData.staff } : { cust: o.userData.cust };
     }
     return null;
   }
@@ -393,8 +394,8 @@ export function createScene(canvas, handlers) {
     v.copy(p).project(camera);
     return { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H, ok: v.z < 1 };
   }
-  const headScreen = id => { const m = custs.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(HEAD))) : null; };
-  const staffScreen = id => { const m = staff.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(HEAD))) : null; };
+  const headScreen = id => { const m = custs.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(KID_HEAD))) : null; };
+  const staffScreen = id => { const m = staff.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(BEAR_HEAD))) : null; };
   // Mép trước của trạm (phía máy quay), để gắn nhãn cấp ngay dưới trạm.
   const stationScreen = id => { const s = stations.get(id); return s ? toScreen(tv.set(s.base.x, TOP_BACK, s.base.z + 0.5)) : null; };
   const stationTop = id => { const s = stations.get(id); return s ? toScreen(tv.set(s.base.x, TOP_BACK + 0.75, s.base.z)) : null; };
@@ -463,6 +464,7 @@ export function createScene(canvas, handlers) {
   function setShop(shop) {
     if (room) scene.remove(room);
     room = buildRoom(shop.theme);
+    apron = shop.theme.apron;
     scene.add(room);
     scene.background = new THREE.Color(shop.theme.sky);
     setStations(shop.stations);
@@ -507,7 +509,7 @@ export function createScene(canvas, handlers) {
   const render = () => renderer.render(scene, camera);
 
   resize();
-  return { resize, update, render, setShop, setStationLocked, sync, press, celebrateStation, popPerson: id => popPerson(staff, id), bounceCust: id => popPerson(custs, id, 0.2), burstAt, shake, punch, setHighlight, setSign, headScreen, staffScreen, stationScreen, stationTop };
+  return { resize, update, render, setShop, setStationLocked, sync, press, celebrateStation, emote, cheerAll, burstAt, shake, punch, setHighlight, setSign, headScreen, staffScreen, stationScreen, stationTop };
 }
 
 function starGeometry() {
@@ -527,8 +529,12 @@ function buildRoom(t) {
   floor.castShadow = false;
   const plank = mat(t.plank);
   for (let x = -11; x <= 11; x += 1.2) { const p = box(0.04, 0.005, 24, plank, x, 0.003, 0, g); p.castShadow = false; }
-  const rug = box(5.4, 0.01, 1.3, mat(t.rug), 0, 0.008, LAYOUT.custZ - 0.05, g);
+  const rug = cyl(1, 1, 0.012, mat(t.rug), 0, 0.008, LAYOUT.custZ - 0.1, g, 40);
+  rug.scale.set(3.1, 1, 0.95);
   rug.castShadow = false;
+  const rugIn = cyl(1, 1, 0.014, mat(new THREE.Color(t.rug).lerp(new THREE.Color(0xffffff), 0.45).getHex()), 0, 0.01, LAYOUT.custZ - 0.1, g, 40);
+  rugIn.scale.set(2.7, 1, 0.72);
+  rugIn.castShadow = false;
 
   const wall = mat(t.wall), trim = mat(t.wainscot);
   box(24, 4.2, 0.2, wall, 0, 2.1, -5, g);
@@ -551,24 +557,49 @@ function buildRoom(t) {
   table(-5.0, -0.9);
   table(5.6, -2.0);
 
-  const pot = mat(0xd4764e), leaf = mat(0x5f9e5a);
+  // cây bụi tròn trong chậu màu kem
+  const pot = mat(0xfff1e0), potBand = mat(t.wainscot), leaf = mat(0x86c98a), leaf2 = mat(0x6fb57a);
   [[-6, -4.3], [6.2, -4.3], [-4.2, 2.9], [4.2, 2.9]].forEach(([x, z]) => {
-    cyl(0.25, 0.18, 0.4, pot, x, 0.2, z, g, 8);
-    mesh(new THREE.IcosahedronGeometry(0.42, 0), leaf, x, 0.8, z, g);
-    mesh(new THREE.IcosahedronGeometry(0.3, 0), leaf, x + 0.15, 1.1, z - 0.05, g);
+    cyl(0.27, 0.2, 0.42, pot, x, 0.21, z, g, 20);
+    cyl(0.275, 0.26, 0.08, potBand, x, 0.34, z, g, 20);
+    sph(0.36, leaf, x, 0.72, z, g, 20, 14);
+    sph(0.24, leaf2, x + 0.2, 0.95, z + 0.05, g, 18, 12);
+    sph(0.2, leaf, x - 0.18, 0.98, z - 0.02, g, 18, 12);
+  });
+  // cờ dây tam giác nhiều màu võng trên tường
+  const flag = new THREE.Shape();
+  flag.moveTo(-0.16, 0); flag.lineTo(0.16, 0); flag.lineTo(0, -0.3); flag.closePath();
+  const flagGeo = new THREE.ShapeGeometry(flag);
+  const flagMats = t.flags.map(c => mat(c, { side: THREE.DoubleSide }));
+  const rope = mat(0x8a5a3b);
+  [[-5.4, -0.4], [-0.2, 5.0]].forEach(([x0, x1]) => {
+    const n = 11, pts = [];
+    for (let i = 0; i <= n; i++) { const k = i / n, x = x0 + (x1 - x0) * k; pts.push(new THREE.Vector3(x, 3.55 - Math.sin(k * Math.PI) * 0.45, -4.86)); }
+    mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.012, 5), rope, 0, 0, 0, g).castShadow = false;
+    for (let i = 1; i < n; i++) {
+      const f = mesh(flagGeo, flagMats[i % flagMats.length], pts[i].x, pts[i].y, -4.84, g);
+      f.castShadow = false;
+    }
   });
   return g;
 }
 
 /* ================= quầy trước (đưa ly) và quầy sau (trạm pha) ================= */
 function buildCounters(scene) {
-  const wood = mat(0x8a5a3b), top = mat(0xefe6d8, { roughness: 0.4 }), accent = mat(0xa8714c);
+  const wood = mat(0xd9a574), top = mat(0xfff8ef, { roughness: 0.4 }), accent = mat(0xf4b6a6);
   const fz = LAYOUT.frontZ, bz = LAYOUT.backZ;
   box(5.9, 0.92, 0.9, wood, 0, 0.46, fz, scene);
   box(6.1, 0.06, 1.0, top, 0, TOP_FRONT, fz, scene);
   for (let x = -2.6; x <= 2.6; x += 0.52) box(0.22, 0.7, 0.03, accent, x, 0.45, fz - 0.46, scene);
   box(5.9, 0.9, 1.1, wood, 0, 0.45, bz, scene);
   box(6.1, 0.06, 1.2, top, 0, TOP_BACK - 0.02, bz, scene);
+  // viền vỏ sò hồng kem trên mặt quầy sau quay về phía máy quay
+  const scallop = new THREE.CircleGeometry(0.15, 16, Math.PI, Math.PI), pink = mat(0xff9fb2), cream = mat(0xfff1e0);
+  for (let i = 0; i < 20; i++) {
+    const sc = mesh(scallop, i % 2 ? cream : pink, -2.85 + i * 0.3, 0.88, bz + 0.553, scene);
+    sc.castShadow = false;
+  }
+  box(5.9, 0.05, 0.02, mat(0xff9fb2), 0, 0.89, bz + 0.555, scene).castShadow = false;
   const reg = new THREE.Group();
   reg.position.set(2.65, TOP_FRONT + 0.03, fz + 0.05);
   reg.rotation.y = Math.PI;
@@ -588,28 +619,5 @@ function buildCrate(color) {
   box(0.12, 0.5, 0.58, tape, 0, 0.28, 0, g);
   box(0.36, 0.2, 0.01, mat(0xfff3dc), 0.15, 0.3, 0.285, g);
   g.visible = false;
-  return g;
-}
-
-function buildPerson(look) {
-  const g = new THREE.Group();
-  const body = new THREE.Group();
-  g.add(body);
-  const s = look.h;
-  const skin = mat(look.skin), shirt = mat(look.shirt), pants = mat(look.pants), hair = mat(look.hair), dark = mat(0x222222);
-  box(0.13, 0.55, 0.14, pants, -0.08, 0.28, 0, body);
-  box(0.13, 0.55, 0.14, pants, 0.08, 0.28, 0, body);
-  cyl(0.2, 0.24, 0.55 * s, shirt, 0, 0.55 + 0.275 * s, 0, body, 10);
-  if (look.apron) box(0.34, 0.5 * s, 0.04, mat(look.apron), 0, 0.52 + 0.25 * s, 0.215, body);
-  const armY = 0.55 + 0.4 * s;
-  [-1, 1].forEach(d => { const a = box(0.09, 0.45 * s, 0.1, shirt, d * 0.27, armY - 0.12, 0, body); a.rotation.z = d * 0.12; });
-  const headY = 0.55 + 0.55 * s + 0.2;
-  sph(0.2, skin, 0, headY, 0, body, 12, 8);
-  const hr = mesh(new THREE.SphereGeometry(0.215, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, headY + 0.01, -0.01, body);
-  hr.rotation.x = -0.25;
-  if (look.cap) { cyl(0.22, 0.22, 0.1, mat(look.apron), 0, headY + 0.14, 0, body, 12); box(0.3, 0.02, 0.16, mat(look.apron), 0, headY + 0.1, 0.2, body); }
-  else if (look.bun) sph(0.09, hair, 0, headY + 0.12, -0.17, body, 8, 6);
-  [-0.07, 0.07].forEach(x => sph(0.025, dark, x, headY + 0.02, 0.18, body, 6, 4));
-  box(0.07, 0.015, 0.01, mat(0xb5463c), 0, headY - 0.07, 0.19, body);
   return g;
 }

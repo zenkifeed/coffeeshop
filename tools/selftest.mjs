@@ -1,6 +1,6 @@
 // Kiểm thử logic thuần: số liệu, tiền và cấp trạm, mô phỏng khách và nhân viên, ước lượng thu nhập,
 // nhiệm vụ và chuyển quán, hướng dẫn, lưu trữ, và mô phỏng cân bằng ba quán trên engine thật.
-import { CFG, LAYOUT, SHOPS } from '../src/data.js';
+import { CFG, LAYOUT, SHOPS, BEARS } from '../src/data.js';
 import * as L from '../src/logic.js';
 import { playAll, seeded } from './balance.mjs';
 
@@ -25,6 +25,9 @@ SHOPS.forEach(sh => {
   ok(sh.start >= sh.stations[0].cost, `${sh.id}: tiền đầu quán đủ nâng cấp trạm đầu một lần (cho bước hướng dẫn)`);
 });
 ok(SHOPS.every((s, i) => !i || s.start > SHOPS[i - 1].start), 'quán sau khởi đầu với nhiều tiền hơn quán trước');
+ok(SHOPS.every(sh => CFG.staff + sh.upgrades.filter(u => u.fx === 'staff').length <= BEARS.length), 'đủ bạn gấu cho số nhân viên tối đa ở mọi chi nhánh');
+ok(SHOPS.every(sh => sh.upgrades.filter(u => u.fx === 'staff').every((u, i) => u.n.includes(BEARS[i + 1].n))), 'nâng cấp thuê gấu ghi đúng tên bạn gấu sẽ vào ca');
+ok(SHOPS.every(sh => Number.isFinite(sh.theme.apron) && sh.theme.flags.length >= 2), 'mỗi chi nhánh có màu tạp dề và cờ dây');
 
 console.log('Định dạng tiền');
 [[0, '0đ'], [950, '950đ'], [1500, '1,5k'], [20000, '20k'], [999960, '1 tr'], [1.25e6, '1,25 tr'], [3.4e9, '3,4 tỷ'], [1.2e13, '12 nghìn tỷ'], [-2e4, '−20k']]
