@@ -7,9 +7,10 @@
   --ease-snap: cubic-bezier(.5, 0, .1, 1);
   --nav-h: 76px;
 }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* touch-action: manipulation tắt phóng to bằng chạm đúp trên mobile (vẫn cho cuộn trong bảng) */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: 'Baloo 2', system-ui, sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--bg); color: var(--ink); font-family: 'Baloo 2', system-ui, sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button { font: inherit; color: inherit; cursor: pointer; border: 0; transition: transform .22s var(--ease-pop), box-shadow .22s var(--ease-pop), filter .15s; }
 button:active { transform: translateY(3px) scale(.95); transition-duration: .06s; transition-timing-function: var(--ease-snap); }
 button.dis { filter: grayscale(.6) opacity(.55); }

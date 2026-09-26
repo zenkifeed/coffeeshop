@@ -256,12 +256,15 @@ export function step(S, W, dt, rng = Math.random) {
   if (W.spawnT <= 0) {
     const slots = L.slotsX[D.queue], used = new Set(W.cust.filter(c => c.state !== 'out').map(c => c.slot));
     const free = slots.map((_, i) => i).filter(i => !used.has(i));
-    if (free.length && open.length) {
-      const slot = rnd(free, rng), [x, z] = L.door, hs = hotSt(W);
+    // khách VIP không chen vào quầy: đi thẳng tới ghế ở bàn VIP (slot -1), quầy kín vẫn vào được
+    const vip = W.events && featureOn(S, 'vip') && W.vipT <= 0 && !W.cust.some(c => c.vip && c.state !== 'out');
+    if (open.length && (vip || free.length)) {
+      const [x, z] = L.door, hs = hotSt(W);
       const st = hs && rng() < CFG.hot.share ? hs : rnd(open, rng).id;
-      const vip = W.events && featureOn(S, 'vip') && W.vipT <= 0;
       if (vip) W.vipT = between(CFG.vip.every, rng) / (1 + vf(S, 'vip'));
-      const c = { id: ++W.uid, slot, x, z, tx: slots[slot], tz: L.custZ, face: 0, moving: true, state: 'in', st, who: 0, t: 0, seed: rng(), vip };
+      const slot = vip ? -1 : rnd(free, rng);
+      const [tx, tz] = vip ? L.vipSpot : [slots[slot], L.custZ];
+      const c = { id: ++W.uid, slot, x, z, tx, tz, face: 0, moving: true, state: 'in', st, who: 0, t: 0, seed: rng(), vip };
       W.cust.push(c);
       ev.push({ k: 'spawn', c });
       W.spawnT = D.gap * (0.7 + rng() * 0.6);
@@ -270,7 +273,7 @@ export function step(S, W, dt, rng = Math.random) {
 
   for (let i = W.cust.length - 1; i >= 0; i--) {
     const c = W.cust[i];
-    if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = FACE_IN; ev.push({ k: 'order', c }); }
+    if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = c.vip ? L.vipFace : FACE_IN; ev.push({ k: 'order', c }); }
     // khách VIP đứng chờ người chơi tự tay rót; chờ quá lâu thì nhờ gấu pha (held: đang mở màn rót, đồng hồ dừng)
     else if (c.state === 'wait' && c.vip && !c.rush && !c.who && !c.held && (c.wt = (c.wt || 0) + dt) >= CFG.vip.wait) { c.rush = true; ev.push({ k: 'vipRush', c }); }
     else if (c.state === 'got' && (c.t += dt) > 0.55) { c.state = 'out'; [c.tx, c.tz] = L.door; }
@@ -301,7 +304,7 @@ export function step(S, W, dt, rng = Math.random) {
       const c = W.cust.find(x => x.id === s.job.c);
       s.carry = s.job.st;
       s.state = 'deliver';
-      s.tx = c ? c.tx : s.x;
+      s.tx = c ? Math.max(L.stationX[0], Math.min(L.stationX[L.stationX.length - 1], c.tx)) : s.x;
       s.tz = L.serveZ;
       ev.push({ k: 'ready', s, st: s.job.st });
     } else if (s.state === 'deliver' && walk(s, D.walk, dt)) {

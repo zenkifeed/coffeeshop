@@ -64,6 +64,61 @@ const BREWFX = {
   cream: { mode: 'whisk', puff: 'bubble', puffAt: [0, 0.25, 0] },
 };
 
+// Góc VIP: thảm đỏ, ghế nệm, bàn tròn viền vàng, biển vương miện, cột dây nhung và vầng sáng ấm.
+// Ghế nằm đúng gốc nhóm — logic.js cho khách VIP đi tới LAYOUT.vipSpot nên ngồi vừa khít.
+function buildVipCorner() {
+  const g = new THREE.Group();
+  const gold = mat(0xffc83d, { metalness: 0.55, roughness: 0.35 });
+  const velvet = mat(0xc0392b, { roughness: 0.55 });
+  // vầng sáng ấm dưới sàn (update() cho thở nhẹ)
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.0, 36), new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.set(0.15, 0.02, 0.2);
+  glow.renderOrder = 1;
+  g.add(glow);
+  const rug = cyl(0.7, 0.7, 0.025, velvet, 0.15, 0.012, 0.2, g, 28);
+  rug.castShadow = false;
+  cyl(0.16, 0.2, 0.2, gold, 0, 0.1, 0, g, 14);                            // chân ghế
+  sph(0.24, mat(0xe25b4a, { roughness: 0.5 }), 0, 0.26, 0, g, 16, 12).scale.set(1, 0.55, 1);   // nệm ngồi
+  // bàn tròn viền vàng phía trước ghế, có sẵn ly nước chanh
+  const tx = 0.6, tz = 0.7;
+  cyl(0.28, 0.28, 0.04, gold, tx, 0.03, tz, g, 18);
+  cyl(0.05, 0.09, 0.62, gold, tx, 0.33, tz, g, 12);
+  cyl(0.4, 0.4, 0.06, mat(0xfff3dc), tx, 0.64, tz, g, 24);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.022, 8, 30), gold);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(tx, 0.675, tz);
+  g.add(rim);
+  cyl(0.055, 0.045, 0.13, mat(0xfff6ea), tx - 0.1, 0.73, tz - 0.1, g, 10);
+  cyl(0.05, 0.05, 0.012, mat(0xffe08a), tx - 0.1, 0.8, tz - 0.1, g, 10);  // lát chanh trên miệng ly
+  // biển nhỏ sau ghế: bảng đỏ viền vàng, đội vương miện
+  cyl(0.028, 0.028, 1.1, gold, -0.5, 0.55, -0.3, g, 8);
+  box(0.56, 0.36, 0.05, gold, -0.5, 1.16, -0.3, g);
+  box(0.5, 0.3, 0.06, mat(0xa93d30), -0.5, 1.16, -0.3, g);
+  const crown = new THREE.Group();
+  crown.position.set(-0.5, 1.38, -0.3);
+  g.add(crown);
+  mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.06, 12, 1, true), gold, 0, 0, 0, crown).material.side = THREE.DoubleSide;
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + 0.4;
+    mesh(new THREE.ConeGeometry(0.026, 0.07, 6), gold, Math.sin(a) * 0.09, 0.06, Math.cos(a) * 0.09, crown);
+  }
+  sph(0.02, mat(0xe25b4a), 0, 0.01, 0.1, crown, 8, 6);
+  // hai cột dây nhung chắn phía sau lưng ghế, chạy chéo song song lối khách đi
+  const posts = [[-0.55, 0.5], [-0.3, -0.45]];
+  posts.forEach(([x, z]) => {
+    cyl(0.1, 0.12, 0.05, gold, x, 0.025, z, g, 12);
+    cyl(0.024, 0.024, 0.85, gold, x, 0.45, z, g, 8);
+    sph(0.05, gold, x, 0.9, z, g, 10, 8);
+  });
+  const A = new THREE.Vector3(posts[0][0], 0.85, posts[0][1]), B = new THREE.Vector3(posts[1][0], 0.85, posts[1][1]);
+  const mid = A.clone().add(B).multiplyScalar(0.5);
+  mid.y -= 0.2;
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(A, mid, B), 20, 0.03, 8), velvet));
+  g.userData.glow = glow;
+  return g;
+}
+
 export function createScene(canvas, handlers) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -313,6 +368,10 @@ export function createScene(canvas, handlers) {
   ring.rotation.x = -Math.PI / 2;
   ring.visible = false;
   scene.add(ring);
+  // góc VIP đứng cố định ở mọi chi nhánh, xoay nhẹ cho bàn hướng về giữa quán
+  const vipG = buildVipCorner();
+  vipG.position.set(LAYOUT.vipSpot[0], 0, LAYOUT.vipSpot[1]);
+  scene.add(vipG);
   function setHighlight(id) {
     const s = id && stations.get(id);
     ring.visible = !!s;
@@ -436,6 +495,7 @@ export function createScene(canvas, handlers) {
       seen.add(c.id);
       const m = custs.get(c.id) || addActor(custs, c.id, buildKid({ ...lookFor(c.seed), ...(c.vip ? { vip: true, shirt: 0xffd166 } : {}) }), c, 'cust');
       if (c.vip && Math.random() < realVipSparkle(dt)) burst('spark', m.g.localToWorld(tv.copy(KID_HEAD)), 1);
+      m.sit = !!(c.vip && !c.moving && c.state !== 'out');
       place(m, c, dt);
       if (c.state === 'got' && !m.cup) holdCup(m, colorOf(c.st));
     }
@@ -607,6 +667,7 @@ export function createScene(canvas, handlers) {
 
   function update(dt, realDt = dt) {
     if (room && room.userData.tick) room.userData.tick(realDt, camT);
+    vipG.userData.glow.material.opacity = 0.3 + Math.sin(camT * 2.2) * 0.12;
     updateCamera(realDt);
     animPeople(dt);
     stations.forEach(s => {

@@ -62,6 +62,12 @@ function save() {
   return ok;
 }
 
+/* ---------- chặn phóng to trên mobile ---------- */
+// touch-action: manipulation (style.css) tắt double-tap zoom; iOS Safari bỏ qua user-scalable=no
+// nên chặn thêm cử chỉ chụm hai ngón (gesturestart) và chạm đúp chuột (dblclick) cho chắc.
+['gesturestart', 'gesturechange'].forEach(k => document.addEventListener(k, e => e.preventDefault()));
+document.addEventListener('dblclick', e => e.preventDefault());
+
 /* ---------- phản hồi chung ---------- */
 // Sàn phản hồi: một bộ nghe duy nhất cho mọi nút, để không nút nào câm.
 document.addEventListener('pointerdown', e => {
@@ -194,7 +200,7 @@ function handle(ev) {
       sfx.cash();
     } else if (e.k === 'brew') { if (sfxOk('brew')) sfx.brew(L.stDef(S, e.st).prop); }
     else if (e.k === 'ready') { if (sfxOk('ready')) sfx.ding(L.stIndex(S, e.st)); }
-    else if (e.k === 'spawn' && e.c.vip) { sfx.vip(); toast(`${ICON.crown} <b>Khách VIP</b> ghé quán! Chạm vào khách để tự tay pha`); }
+    else if (e.k === 'spawn' && e.c.vip) { sfx.vip(); toast(`${ICON.crown} <b>Khách VIP</b> đang ngồi ở bàn VIP! Chạm vào khách để tự tay pha`); }
     else if (e.k === 'vipRush') { sfx.meh(); toast(`${ICON.crown} Khách VIP chờ lâu quá, các bạn gấu pha giúp — chỉ được gấp ${CFG.vip.auto.mul}`, true); }
     else if (e.k === 'hot') {
       const d = L.stDef(S, e.st);

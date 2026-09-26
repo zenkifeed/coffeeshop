@@ -250,6 +250,11 @@ export function animKid(m, dt) {
   timers(m, dt);
   stepSpring(m.sp, dt);
   apply(m, pose(m, dt, { cup: !!m.cup }));
+  if (m.sit) {
+    // ngồi ghế nệm ở bàn VIP: nhấc người lên mặt nệm, hai chân duỗi ra phía trước
+    m.P.legL.rotation.x = m.P.legR.rotation.x = 1.45;
+    m.g.position.y += 0.13;
+  }
 }
 export function newActor(built, seed) { return { ...built, sp: { v: 0, vel: 0 }, t: Math.random() * 5, seed, cup: null, carry: null, emote: null }; }
 

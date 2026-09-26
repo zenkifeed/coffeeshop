@@ -203,7 +203,7 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
     WH.vipT = 0.01;
     let v = null;
     for (let t = 0; t < 40 && !(v = L.vipWaiting(WH)); t += 0.1) L.step(H, WH, 0.1, rh);
-    ok(!!v, 'khách VIP tới quầy và đứng chờ người chơi rót');
+    ok(!!v && v.slot === -1 && v.tx === LAYOUT.vipSpot[0] && v.tz === LAYOUT.vipSpot[1], 'khách VIP ngồi ở bàn VIP (không giữ chỗ ở quầy) và chờ người chơi rót');
     L.holdVip(WH, v.id, true);
     for (let t = 0; t < CFG.vip.wait + 10; t += 0.1) L.step(H, WH, 0.1, rh);
     ok(!v.rush && L.vipWaiting(WH) === v, 'đang mở màn rót thì khách chờ mãi, gấu không giành');

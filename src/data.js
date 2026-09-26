@@ -33,7 +33,7 @@ export const CFG = {
 export const FEATURES = {
   boost: { n: 'Tăng tốc ×2', d: 'Bấm nút tăng tốc: mọi món bán gấp đôi trong 3 phút, miễn phí.', tasks: 2 },
   hot:   { n: 'Món hot', d: 'Thỉnh thoảng một món thành món hot: khách gọi nhiều hơn và trả gấp đôi.', stations: 2 },
-  vip:   { n: 'Khách VIP', d: 'Khách đội vương miện thỉnh thoảng ghé quán. Chạm vào khách rồi tự tay rót: trúng vạch vàng thì tiền gấp nhiều lần, kèm kim cương.', tasks: 5 },
+  vip:   { n: 'Khách VIP', d: 'Khách đội vương miện thỉnh thoảng ghé và ngồi ở bàn VIP riêng. Chạm vào khách rồi tự tay rót: trúng vạch vàng thì tiền gấp nhiều lần, kèm kim cương.', tasks: 5 },
   vault: { n: 'Kho báu', d: 'Dùng kim cương mua buff vĩnh viễn, giữ qua mọi chi nhánh.', gems: 1 },
 };
 
@@ -63,6 +63,8 @@ export const LAYOUT = {
   stationX: [-2.2, -1.1, 0, 1.1, 2.2],
   spotDX: [0, -0.3, 0.3],    // chỗ đứng thứ 1, 2, 3 trước một trạm
   slotsX: { 3: [-1.5, 0, 1.5], 4: [-1.95, -0.65, 0.65, 1.95], 5: [-2.2, -1.1, 0, 1.1, 2.2] },
+  vipSpot: [-2.0, 1.8],      // ghế ở bàn VIP (góc trái dưới, trong khung máy quay dọc, tránh lối khách đi từ cửa vào quầy)
+  vipFace: 0.7,              // hướng ngồi: quay về phía bàn và người chơi để thấy rõ vương miện
   staffHome: [0, -1.1, 1.1, -2.2, 2.2, -0.55, 0.55],
 };
 
