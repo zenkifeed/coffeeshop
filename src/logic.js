@@ -5,9 +5,9 @@ import { CFG, LAYOUT, SHOPS } from './data.js';
 
 export const rnd = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 
-/* ---------- định dạng tiền vàng: số thường dưới 1.000, rồi k, m, b, t ---------- */
-// k = nghìn, m = triệu, b = tỷ, t = nghìn tỷ. Dưới 10 giữ một chữ số thập phân (thu nhập mỗi giây lúc đầu chỉ vài xu).
-const UNITS = [[1e12, 't'], [1e9, 'b'], [1e6, 'm'], [1e3, 'k']];
+/* ---------- định dạng tiền vàng: số thường dưới 1.000, rồi K, M, B, T ---------- */
+// K = nghìn, M = triệu, B = tỷ, T = nghìn tỷ. Dưới 10 giữ một chữ số thập phân (thu nhập mỗi giây lúc đầu chỉ vài xu).
+const UNITS = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
 export function fmt(n) {
   if (!Number.isFinite(n)) return '∞';
   const sign = n < 0 ? '−' : '';

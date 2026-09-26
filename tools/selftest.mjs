@@ -30,7 +30,7 @@ ok(SHOPS.every(sh => sh.upgrades.filter(u => u.fx === 'staff').every((u, i) => u
 ok(SHOPS.every(sh => Number.isFinite(sh.theme.apron) && sh.theme.flags.length >= 2), 'mỗi chi nhánh có màu tạp dề và cờ dây');
 
 console.log('Định dạng tiền');
-[[0, '0'], [5, '5'], [0.84, '0,8'], [60, '60'], [950, '950'], [999.6, '1k'], [1500, '1,5k'], [20000, '20k'], [999960, '1m'], [1.25e6, '1,25m'], [3.4e9, '3,4b'], [1.2e13, '12t'], [-2e4, '−20k']]
+[[0, '0'], [5, '5'], [0.84, '0,8'], [60, '60'], [950, '950'], [999.6, '1K'], [1500, '1,5K'], [20000, '20K'], [999960, '1M'], [1.25e6, '1,25M'], [3.4e9, '3,4B'], [1.2e13, '12T'], [-2e4, '−20K']]
   .forEach(([n, s]) => ok(L.fmt(n) === s, `fmt(${n}) = ${s} (ra ${L.fmt(n)})`));
 ok(SHOPS[0].start < 1000 && L.fmt(SHOPS[0].start) === String(SHOPS[0].start), 'vốn đầu game chỉ vài chục vàng, hiện bằng số thường');
 {
