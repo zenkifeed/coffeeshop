@@ -225,6 +225,76 @@ console.log('Lưu trữ');
   delete globalThis.localStorage;
 }
 
+console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả)');
+{
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const cwd = process.cwd();
+  process.chdir(mkdtempSync(join(tmpdir(), 'cafe-api-')));   // kho lưu file tạm, không đụng thư mục dự án
+  Object.assign(process.env, { SESSION_SECRET: 'kiem-thu-khoa-ky-phien-0123456789', DISCORD_CLIENT_SECRET: 'x' });
+  delete process.env.VERCEL; delete process.env.KV_REST_API_URL; delete process.env.UPSTASH_REDIS_REST_URL;
+  const core = await import('../api/_lib/core.js');
+  const login = await import('../api/auth/login.js'), callback = await import('../api/auth/callback.js');
+  const me = await import('../api/me.js'), saveApi = await import('../api/save.js'), logout = await import('../api/auth/logout.js');
+  const H = 'http://localhost:5173';
+  const req = (path, { method = 'GET', cookie = '', body } = {}) => new Request(H + path, { method, headers: { cookie }, body });
+  const setCookies = r => r.headers.getSetCookie();
+  const cookieVal = (r, name) => { const c = setCookies(r).find(x => x.startsWith(name + '=')); return c ? decodeURIComponent(c.split(';')[0].slice(name.length + 1)) : null; };
+
+  const tok = core.makeSession({ id: '42', name: 'Gấu', avatar: 'a' });
+  ok(core.readSession(req('/', { cookie: 'cs_sess=' + tok }))?.id === '42', 'phiên ký đúng thì đọc ra người chơi');
+  const [body] = tok.split('.');
+  ok(!core.readSession(req('/', { cookie: 'cs_sess=' + body + '.saichuky' })), 'phiên bị sửa chữ ký thì bị từ chối');
+  const forged = Buffer.from(JSON.stringify({ id: '1', name: 'x', exp: Date.now() + 1e9 })).toString('base64url') + '.' + tok.split('.')[1];
+  ok(!core.readSession(req('/', { cookie: 'cs_sess=' + forged })), 'đổi nội dung phiên mà giữ chữ ký cũ thì bị từ chối');
+  ok(!core.readSession(req('/', { cookie: 'cs_sess=' + tok }), Date.now() + 31 * 864e5), 'phiên quá 30 ngày thì hết hạn');
+
+  const lr = login.GET(req('/api/auth/login'));
+  const loc = new URL(lr.headers.get('location')), state = cookieVal(lr, 'cs_state');
+  ok(lr.status === 302 && loc.host === 'discord.com' && loc.searchParams.get('scope') === 'identify' && loc.searchParams.get('state') === state && loc.searchParams.get('redirect_uri') === H + '/api/auth/callback', 'đăng nhập: chuyển sang Discord, chỉ xin quyền identify, kèm state và địa chỉ quay về');
+  const bad = await callback.GET(req(`/api/auth/callback?code=c&state=khac`, { cookie: 'cs_state=' + state }));
+  ok(bad.headers.get('location') === '/?login=fail' && !cookieVal(bad, 'cs_sess'), 'state không khớp thì không đăng nhập');
+  const calls = [];
+  core.deps.fetch = async (url, o) => {
+    calls.push(url);
+    if (url.includes('oauth2/token')) return new Response(JSON.stringify({ access_token: 'tk' }));
+    return new Response(JSON.stringify({ id: '80351110224678912', username: 'gau', global_name: 'Gấu Nâu', avatar: null }));
+  };
+  const good = await callback.GET(req(`/api/auth/callback?code=c&state=${state}`, { cookie: 'cs_state=' + state }));
+  const sess = cookieVal(good, 'cs_sess');
+  ok(good.headers.get('location') === '/?login=ok' && sess && calls.length === 2, 'đúng state: đổi mã, đọc người dùng, đặt cookie phiên');
+  ok(setCookies(good).some(c => c.startsWith('cs_sess=') && c.includes('HttpOnly') && c.includes('SameSite=Lax')), 'cookie phiên HttpOnly, SameSite=Lax');
+  const who = await (await me.GET(req('/api/me', { cookie: 'cs_sess=' + sess }))).json();
+  ok(who.user && who.user.name === 'Gấu Nâu' && who.user.avatar.includes('embed/avatars'), '/api/me trả tên hiển thị và ảnh mặc định khi chưa đặt ảnh');
+  core.deps.fetch = async () => new Response('', { status: 400 });
+  const lr2 = login.GET(req('/api/auth/login')), st2 = cookieVal(lr2, 'cs_state');
+  ok((await callback.GET(req(`/api/auth/callback?code=c&state=${st2}`, { cookie: 'cs_state=' + st2 }))).headers.get('location') === '/?login=fail', 'Discord từ chối mã thì quay về game báo lỗi');
+
+  ok((await saveApi.GET(req('/api/save'))).status === 401, 'chưa đăng nhập thì không đọc được bản lưu');
+  const auth = { cookie: 'cs_sess=' + sess };
+  ok((await (await saveApi.GET(req('/api/save', auth))).json()).data === null, 'chưa lưu gì thì trả data null');
+  ok((await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: '{"data":{"v":1}}' }))).status === 400, 'bản lưu sai khung thì bị chặn');
+  const big = L.freshState(); big.pad = 'x'.repeat(120 * 1024);
+  ok((await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: JSON.stringify({ data: big }) }))).status === 400, 'bản lưu quá lớn thì bị chặn');
+  const mine = L.freshState(); mine.money = 777;
+  const put = await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: JSON.stringify({ data: mine }) }));
+  const back = await (await saveApi.GET(req('/api/save', auth))).json();
+  ok(put.status === 200 && back.data.money === 777 && back.at > 0, 'lưu rồi đọc lại đúng bản của mình');
+  const other = core.makeSession({ id: '99', name: 'Khác', avatar: '' });
+  ok((await (await saveApi.GET(req('/api/save', { cookie: 'cs_sess=' + other }))).json()).data === null, 'người khác không thấy bản lưu của mình');
+  ok(cookieVal(logout.POST(req('/api/auth/logout', { method: 'POST', ...auth })), 'cs_sess') === '', 'đăng xuất xoá cookie phiên');
+  process.env.VERCEL = '1';
+  ok((await saveApi.GET(req('/api/save', auth))).status === 503, 'trên Vercel mà chưa gắn kho lưu thì báo 503, không ghi ra file');
+  delete process.env.VERCEL;
+  process.chdir(cwd);
+
+  const { sameProgress, isFresh } = await import('../src/cloud.js');
+  const a = L.freshState(), b = { ...L.freshState(), at: 123 };
+  ok(sameProgress(a, b) && !sameProgress(a, { ...b, money: 1 }), 'so tiến trình bỏ qua mốc thời gian lưu');
+  ok(isFresh(L.freshState()) && !isFresh({ ...L.freshState(), life: { served: 3, earned: 1 } }), 'bản còn trắng thì lấy bản trên mây không cần hỏi');
+}
+
 console.log('Mô phỏng cân bằng ba quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
 {
   const BAND = [[10, 35], [10, 40], [10, 45]];

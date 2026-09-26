@@ -45,7 +45,7 @@ Nút bánh răng ở góc trên: bật tắt nhạc nền, âm thanh hiệu ứn
 
 ### Lưu tiến trình
 
-Game tự lưu trong trình duyệt, không cần tài khoản. Xoá dữ liệu trình duyệt hoặc chơi trong tab ẩn danh thì sẽ mất tiến trình.
+Game tự lưu trong trình duyệt, không cần tài khoản. Muốn giữ tiến trình khi đổi máy hay xoá dữ liệu trình duyệt thì vào **Cài đặt › Đăng nhập bằng Discord**: tiến trình được lưu lên mây và tự tải về khi đăng nhập ở máy khác. Game chỉ đọc tên và ảnh đại diện Discord của bạn.
 
 ## Dành cho người phát triển
 
@@ -55,5 +55,7 @@ Cần [Node.js](https://nodejs.org) 20.11 trở lên.
 npm start   # chạy ở http://localhost:5173
 npm test    # kiểm thử
 ```
+
+Đăng nhập Discord cần các biến môi trường trong `.env.local` (khi chạy trên máy) và trên Vercel: `DISCORD_CLIENT_SECRET`, `SESSION_SECRET`, cùng kho Upstash Redis (`KV_REST_API_URL`, `KV_REST_API_TOKEN`). Khi chạy trên máy mà chưa có Redis thì bản lưu nằm trong thư mục `.data/`.
 
 Đẩy code lên nhánh `main` của GitHub thì bản online trên Vercel tự cập nhật.

@@ -8,6 +8,7 @@ import { Music } from './music.js';
 import { opts, saveOpts, haptic } from './feel.js';
 import * as SV from './save.js';
 import { Coach } from './coach.js';
+import { Cloud, sameProgress, isFresh } from './cloud.js';
 import { $, esc, ICON, bearIcon, drinkIcon, starsHTML, toast, floatText, flash, punchEl, retrigger, centerOf, coinFly, domBurst, countUp, modal, modalOpen } from './ui.js';
 
 const fmt = L.fmt;
@@ -453,6 +454,7 @@ function doMove() {
   haptic('heavy');
   setTimeout(() => {
     L.moveShop(S);
+    Cloud.push(S);
     W = L.newWorld(S);
     applyShop();
     R.disp = S.money;
@@ -576,6 +578,7 @@ function settings() {
   closeSheet();
   const onOff = v => v ? 'Bật' : 'Tắt';
   modal(`<h2>Cài đặt</h2>
+    ${accountHTML()}
     <div class="set"><button data-tap data-o="music"><span>Nhạc nền</span><b class="${musicOn() ? 'on' : ''}">${onOff(musicOn())}</b></button>
     <button data-tap data-o="sound"><span>Âm thanh hiệu ứng</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
     <button data-tap data-o="haptic"><span>Rung khi chạm</span><b class="${opts.haptic ? 'on' : ''}">${onOff(opts.haptic)}</b></button></div>
@@ -583,6 +586,7 @@ function settings() {
   [['Khôi phục bản tự lưu', () => restoreDlg(settings)],
     ['Chơi lại từ đầu', () => modal('<h2>Xoá quán và chơi lại?</h2><p>Mọi tiến trình sẽ mất, chỉ giữ tên quán.</p>', [['Huỷ', settings], ['Xoá và chơi lại', () => applyState(null, 'Đã mở quán mới'), 1]])],
     ['Xong', () => {}, 1]]);
+  bindAccount();
   $('card').querySelectorAll('[data-o]').forEach(b => {
     b.onclick = () => {
       const k = b.dataset.o;
@@ -598,6 +602,49 @@ function settings() {
     };
   });
 }
+/* ---------- tài khoản Discord: lưu tiến trình lên mây ---------- */
+const DISCORD_ICON = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.028C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .079.009c.12.1.246.198.373.292a.077.077 0 0 1-.007.128 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.055c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>';
+const clock = t => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+function accountHTML() {
+  const u = Cloud.user;
+  if (!u) return `<div class="acct"><button class="discord" id="dcLogin" data-quiet>${DISCORD_ICON}Đăng nhập bằng Discord</button>
+    <p class="muted small">Lưu tiến trình lên mây để chơi tiếp trên máy khác. Game chỉ đọc tên và ảnh đại diện Discord của bạn.</p></div>`;
+  return `<div class="acct in"><img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer"><div class="who"><b>${esc(u.name)}</b><small id="dcStat">${Cloud.lastAt ? 'Đã lưu lên mây lúc ' + clock(Cloud.lastAt) : 'Đang đồng bộ…'}</small></div>
+    <button class="ghost" id="dcOut">Đăng xuất</button></div>`;
+}
+function bindAccount() {
+  const li = $('dcLogin'), lo = $('dcOut');
+  if (li) li.onclick = () => { sfx.uiPrimary(); save(); Cloud.login(); };
+  if (lo) lo.onclick = async () => { await Cloud.push(S); await Cloud.logout(); toast('Đã đăng xuất Discord. Tiến trình vẫn lưu trên máy này'); settings(); };
+}
+// Tóm tắt một bản lưu để người chơi nhận ra: chi nhánh, tiền, số khách, lúc lưu.
+const saveLine = (d, at) => `<b>${esc(SHOPS[d.shop] ? SHOPS[d.shop].n : '?')}</b> · ${fmt(d.money)} · ${(d.life && d.life.served || 0).toLocaleString('vi-VN')} khách${at ? ' · ' + whenOf(at) : ''}`;
+// Sau khi biết đã đăng nhập: so bản trên máy với bản trên mây rồi mới bật tự đẩy.
+async function cloudSync(next = () => {}) {
+  if (!Cloud.user) return next();
+  const rec = await Cloud.pull();
+  if (!rec) { toast('Chưa kết nối được máy chủ lưu, tạm lưu trên máy', true); return next(); }
+  const cloud = rec.data;
+  const keepLocal = async () => { Cloud.synced = true; if (await Cloud.push(S, true)) toast('Đã lưu tiến trình lên Discord'); next(); };
+  const takeCloud = () => { Cloud.synced = true; Cloud.lastAt = rec.at; applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
+  if (!cloud) return keepLocal();
+  if (sameProgress(cloud, S)) { Cloud.synced = true; Cloud.lastAt = rec.at; return next(); }
+  if (isFresh(S)) return takeCloud();
+  modal(`<h2>Chọn tiến trình để chơi tiếp</h2><p class="muted small">Tiến trình trên máy này khác với bản đã lưu trên Discord.</p>
+    <div class="pick"><small>Trên Discord</small><div>${saveLine(cloud, rec.at)}</div></div>
+    <div class="pick"><small>Trên máy này</small><div>${saveLine(S, S.at)}</div></div>`,
+  [['Dùng bản trên Discord', takeCloud, 1], ['Dùng bản trên máy này', keepLocal]], 'welcome');
+}
+// Quay về từ Discord (?login=ok|fail|cancel): báo kết quả rồi xoá tham số khỏi thanh địa chỉ.
+function loginResult() {
+  const q = new URLSearchParams(location.search), r = q.get('login');
+  if (!r) return;
+  history.replaceState(null, '', location.pathname);
+  if (r === 'ok' && Cloud.user) toast(`Đã đăng nhập Discord: <b>${esc(Cloud.user.name)}</b>`);
+  else if (r === 'cancel') toast('Đã huỷ đăng nhập Discord');
+  else toast('Đăng nhập Discord chưa được, thử lại sau nhé', true);
+}
+
 function applyState(d, msg) {
   const n = S.shopName;
   S = hydrate(d);
@@ -657,7 +704,7 @@ function offlineDlg(since, next = () => {}) {
 }
 document.addEventListener('visibilitychange', () => {
   pauseAudio(document.hidden);
-  if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); save(); }
+  if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); save(); Cloud.push(S); }
   else if (R.hiddenAt) { const t = R.hiddenAt; R.hiddenAt = 0; if (!modalOpen()) offlineDlg(t); }
 });
 window.addEventListener('pagehide', () => save());
@@ -711,14 +758,17 @@ function runCoach() {
 }
 
 /* ---------- khởi động ---------- */
+const cloudReady = Cloud.me();
 function bootChecks() {
   const steps = [];
   if (loaded.status === 'corrupt') steps.push(corruptDlg);
   if (!SV.storageOk()) { R.noStoreWarned = true; steps.push(storeWarn); }
   if (!S.ftue.welcomed) steps.push(welcomeDlg);
   else if (bootAt) steps.push(next => offlineDlg(bootAt, next));
+  steps.push(next => { loginResult(); cloudSync(next); });
   const run = () => { const f = steps.shift(); if (f) f(run); };
-  run();
+  // biết đã đăng nhập hay chưa trước khi chạy các bước (không chờ quá hạn gọi mạng)
+  cloudReady.then(run);
 }
 function splash() {
   const sp = $('splash');
@@ -758,6 +808,7 @@ function frame(now) {
     slowUi();
   }
   if ((R.saveT -= realDt) <= 0) { R.saveT = 10; save(); }
+  if ((R.cloudT = (R.cloudT ?? 30) - realDt) <= 0) { R.cloudT = 30; Cloud.push(S).then(ok => { if (ok && $('dcStat')) $('dcStat').textContent = 'Đã lưu lên mây lúc ' + clock(Cloud.lastAt); }); }
   if ((R.bakT -= dt) <= 0) { R.bakT = CFG.backupEvery; SV.rotateBackups(S); }
   labelPos();
   bubbles();
