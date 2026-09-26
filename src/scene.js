@@ -551,6 +551,27 @@ export function createScene(canvas, handlers) {
     camera.updateProjectionMatrix();
     fit();
   }
+  // Máy quay lúc vào quán: đặt sẵn ở xa, cao và lệch góc (introPrime), rồi sà vào vị trí thường (introPlay),
+  // chậm dần về cuối để dừng êm; lúc dừng thì đẩy ống kính nhẹ và gọi onLand để game hiện các bảng tiếp theo.
+  let intro = null;
+  const introFrom = new THREE.Vector3(), introOff = new THREE.Vector3();
+  function introPrime(dur = 1.4) { intro = { t: 0, dur, playing: false, onLand: null }; }
+  function introPlay(onLand) { if (!intro) introPrime(); intro.playing = true; intro.onLand = onLand; }
+  function introPose(pos, dt) {
+    if (!intro) return;
+    const m = motionScale;
+    if (intro.playing) intro.t += dt;
+    const k = Math.min(1, intro.t / intro.dur), e = 1 - Math.pow(1 - k, 3);
+    introOff.subVectors(camBase, camTarget).applyAxisAngle(UP, 0.5 * m).multiplyScalar(1 + 0.8 * m);
+    introFrom.copy(camTarget).add(introOff).add(tA.set(0, 1.5 * m, 0));
+    pos.lerpVectors(introFrom, pos, e);
+    if (k >= 1) {
+      const cb = intro.onLand;
+      intro = null;
+      punch(0.35);
+      if (cb) cb();
+    }
+  }
   function updateCamera(realDt) {
     camT += realDt;
     const m = motionScale, s = trauma * trauma * (m < 1 ? 0.3 : 1);
@@ -558,6 +579,7 @@ export function createScene(canvas, handlers) {
       camBase.x + Math.sin(camT * 0.37) * 0.05 * m + s * 0.14 * (Math.sin(camT * 57) + Math.sin(camT * 91) * 0.5),
       camBase.y + Math.sin(camT * 0.53) * 0.035 * m + s * 0.1 * Math.sin(camT * 73 + 1),
       camBase.z);
+    introPose(camera.position, realDt);
     camera.lookAt(camTarget);
     trauma = Math.max(0, trauma - realDt * 1.8);
     const fov = BASE_FOV * (1 - punchV * 0.06 * m);
@@ -617,7 +639,7 @@ export function createScene(canvas, handlers) {
   const render = () => renderer.render(scene, camera);
 
   resize();
-  return { resize, update, render, setShop, setStationLocked, sync, press, celebrateStation, emote, cheerAll, burstAt, shake, punch, setHighlight, setSign, headScreen, staffScreen, stationScreen, stationTop };
+  return { resize, update, render, introPrime, introPlay, setShop, setStationLocked, sync, press, celebrateStation, emote, cheerAll, burstAt, shake, punch, setHighlight, setSign, headScreen, staffScreen, stationScreen, stationTop };
 }
 
 function starGeometry() {

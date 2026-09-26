@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="style.css">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
 </head>
-<body>
+<body class="pre">
 <canvas id="c"></canvas>
 <header id="hud">
   <button id="setBtn" class="icb ghosty" aria-label="Cài đặt"></button>
@@ -41,9 +41,10 @@
 <div id="modal" hidden><div class="card" id="card"></div></div>
 <div id="splash">
   <div class="sp-in">
-    <div class="logo"></div>
+    <div class="logo"><img src="icons/icon.svg" alt=""></div>
     <h1>Quán Cà Phê Nhỏ</h1>
-    <p class="tap">Chạm để mở quán</p>
+    <p class="sp-wait" id="spWait">Đang mở cửa…</p>
+    <button class="enter" id="enterBtn" hidden>Vào quán thôi!</button>
   </div>
 </div>
 <script type="module">

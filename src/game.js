@@ -800,38 +800,54 @@ function loginDlg(next) {
   };
 }
 
+// Các bước sau khi đã vào quán (máy quay dừng): cảnh báo lưu, đồng bộ Discord, chào mừng, tiền lúc vắng mặt.
 function bootChecks() {
   const steps = [];
   if (loaded.status === 'corrupt') steps.push(corruptDlg);
   if (!SV.storageOk()) { R.noStoreWarned = true; steps.push(storeWarn); }
-  steps.push(authGate);
   steps.push(cloudSync);
   // thẻ chào mừng sau khi đồng bộ: tải bản trên mây về rồi thì không chào lại
   steps.push(next => (S.ftue.welcomed ? next() : welcomeDlg(next)));
   // tiền lúc vắng mặt tính theo bản trên máy; nếu vừa lấy bản trên mây thì cloudSync đã tính rồi
   steps.push(next => (bootAt && !R.tookCloud ? offlineDlg(bootAt, next) : next()));
   const run = () => { const f = steps.shift(); if (f) f(run); };
-  // biết đã đăng nhập hay chưa trước khi chạy các bước (không chờ quá hạn gọi mạng)
-  cloudReady.then(run);
+  run();
 }
+// Màn mở: vừa tải xong là hỏi cách chơi (bảng nổi trên màn mở), chọn xong mới hiện nút "Vào quán thôi!".
+// Người đã chọn từ trước thì thấy nút ngay. Bấm nút: màn mở phóng to mờ dần, máy quay sà vào quán,
+// thanh trên và thanh dưới trượt vào; máy quay dừng thì mới hiện các bảng tiếp theo.
 function splash() {
   const sp = $('splash');
-  sp.querySelector('.logo').innerHTML = drinkIcon('#8a5a3b', true);
-  let done = false;
-  const go = () => {
-    if (done) return;
-    done = true;
-    audioUnlock();
-    // AudioContext chỉ chạy sau cú chạm đầu tiên, nên nhạc bắt đầu từ màn mở
-    Music.start(musicOn());
-    sfx.uiPrimary();
-    haptic('primary');
-    sp.classList.add('out');
-    setTimeout(() => { sp.hidden = true; bootChecks(); }, 450);
-    scene.punch(0.5);
-  };
-  sp.addEventListener('pointerdown', go, { once: true });
-  setTimeout(go, 12000);
+  sp.classList.add('js');
+  scene.introPrime();
+  cloudReady.then(() => authGate(showEnter));
+}
+function showEnter() {
+  $('spWait').hidden = true;
+  const btn = $('enterBtn');
+  btn.hidden = false;
+  btn.onclick = enterShop;
+}
+function enterShop() {
+  const sp = $('splash'), btn = $('enterBtn');
+  btn.onclick = null;
+  audioUnlock();
+  // AudioContext chỉ chạy sau cú chạm đầu tiên, nên nhạc bắt đầu từ lúc bấm vào quán
+  Music.start(musicOn());
+  sfx.uiPrimary();
+  sfx.sheet();
+  haptic('primary');
+  sp.classList.add('out');
+  document.body.classList.add('entering');
+  document.body.classList.remove('pre');
+  scene.introPlay(() => {
+    // máy quay vừa dừng: chuông nhẹ, rung nhẹ, rồi mới tới các bảng
+    sfx.ding(2);
+    haptic('tap');
+    bootChecks();
+  });
+  setTimeout(() => { sp.hidden = true; }, 720);
+  setTimeout(() => document.body.classList.remove('entering'), 2200);
 }
 
 /* ---------- vòng lặp ---------- */
