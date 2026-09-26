@@ -379,15 +379,18 @@ export const offlineSecs = (S, secs) => Math.min(Math.max(0, secs), offlineCapH(
 export const offlineRate = S => rate(S, derived(S, { noBoost: true }));
 
 /* ---------- nhiệm vụ ---------- */
+// Loại nhiệm vụ: level (trạm đạt cấp), unlock (mở trạm), upg (mua một nâng cấp cụ thể),
+// upgn (sở hữu đủ v nâng cấp bất kỳ của quán), served (phục vụ đủ v khách ở quán này).
 export function taskProg(S, t) {
-  const cur = t.k === 'level' ? lvOf(S, t.st) : t.k === 'unlock' ? +(lvOf(S, t.st) > 0) : t.k === 'upg' ? +!!S.upg[t.id] : S.served;
-  const need = t.k === 'level' || t.k === 'served' ? t.v : 1;
+  const cur = t.k === 'level' ? lvOf(S, t.st) : t.k === 'unlock' ? +(lvOf(S, t.st) > 0) : t.k === 'upg' ? +!!S.upg[t.id] : t.k === 'upgn' ? Object.keys(S.upg).length : S.served;
+  const need = t.k === 'unlock' || t.k === 'upg' ? 1 : t.v;
   return { cur: Math.min(cur, need), need, done: cur >= need };
 }
 export function taskText(S, t) {
   if (t.k === 'level') return `Nâng ${stDef(S, t.st).n} lên cấp ${t.v}`;
   if (t.k === 'unlock') return `Mở trạm ${stDef(S, t.st).n}`;
   if (t.k === 'upg') return upgDef(S, t.id).n;
+  if (t.k === 'upgn') return `Mua đủ ${t.v} nâng cấp quán`;
   return `Phục vụ ${t.v} khách`;
 }
 export const tasks = S => shopOf(S).tasks.map((t, i) => ({ ...t, i, ...taskProg(S, t), claimed: !!S.claimed[i] }));

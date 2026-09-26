@@ -35,7 +35,7 @@ Bốn bạn gấu lần lượt vào ca: **Gấu Nâu** đội mũ đỏ, **Gấ
 
 ### Nhiệm vụ và chi nhánh mới
 
-Mỗi quán có một danh sách nhiệm vụ (nâng máy, mở món, thuê gấu, phục vụ đủ số khách…), xong thì bấm **Nhận** lấy thưởng. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới:
+Mỗi quán có một danh sách nhiệm vụ (nâng máy, mở món, thuê gấu, phục vụ đủ số khách…), xong thì bấm **Nhận** lấy thưởng. Muốn chuyển quán phải làm chủ quán hiện tại thật sự: mở hết mọi trạm, mua đủ mọi nâng cấp, nâng máy lên cấp cao và phục vụ thật nhiều khách. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới:
 
 1. **Góc Phố**: quán vỉa hè với ghế nhựa, mái hiên, xe máy đỗ bên lề.
 2. **Sân Vườn**: quán có giàn hoa, khách ngồi lâu.

@@ -19,6 +19,8 @@ function taskAction(S, t) {
     return n ? { cost: n.unlock, go: () => L.unlock(S, n.id) } : null;
   }
   if (t.k === 'upg') return { cost: L.upgDef(S, t.id).cost, go: () => L.buyUpgrade(S, t.id) };
+  // "mua đủ n nâng cấp": mua dần cái rẻ nhất còn thiếu
+  if (t.k === 'upgn') { const u = L.upgList(S)[0]; return u ? { cost: u.cost, go: () => L.buyUpgrade(S, u.id) } : null; }
   return null;
 }
 function gainOf(S, apply, undo) { const r0 = L.rate(S); apply(); const r1 = L.rate(S); undo(); return r1 - r0; }

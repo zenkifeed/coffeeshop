@@ -22,6 +22,12 @@ SHOPS.forEach(sh => {
   });
   sh.upgrades.forEach(u => ok(FX.includes(u.fx) && u.cost > 0 && (u.fx !== 'profit' || u.st === 'all' || [].concat(u.st).every(x => ids.includes(x))), `${sh.id}/${u.id}: tác dụng hợp lệ`));
   sh.tasks.forEach((t, i) => ok((t.k !== 'level' && t.k !== 'unlock') || ids.includes(t.st) ? (t.k !== 'upg' || up.includes(t.id)) : false, `${sh.id}: nhiệm vụ ${i + 1} trỏ đúng trạm/nâng cấp`));
+  sh.tasks.forEach((t, i) => ok(t.k !== 'upgn' || (t.v >= 1 && t.v <= sh.upgrades.length), `${sh.id}: nhiệm vụ ${i + 1} "mua đủ nâng cấp" không vượt số nâng cấp có`));
+  // điều kiện chuyển quán phải đắt: mở hết trạm, mua đủ mọi nâng cấp, nâng trạm sâu và trạm cuối cũng lên cấp
+  ok(sh.stations.slice(1).every(st => sh.tasks.some(t => t.k === 'unlock' && t.st === st.id)), `${sh.id}: phải mở hết trạm mới xong nhiệm vụ`);
+  ok(sh.tasks.some(t => t.k === 'upgn' && t.v === sh.upgrades.length), `${sh.id}: phải mua đủ mọi nâng cấp mới xong nhiệm vụ`);
+  ok(sh.tasks.some(t => t.k === 'level' && t.v >= 50), `${sh.id}: có nhiệm vụ nâng trạm lên cấp 50 trở lên`);
+  ok(sh.tasks.some(t => t.k === 'level' && t.st === sh.stations[sh.stations.length - 1].id), `${sh.id}: trạm cuối cũng phải lên cấp`);
   ok(sh.start >= sh.stations[0].cost, `${sh.id}: tiền đầu quán đủ nâng cấp trạm đầu một lần (cho bước hướng dẫn)`);
 });
 ok(SHOPS.every((s, i) => !i || s.start > SHOPS[i - 1].start), 'quán sau khởi đầu với nhiều tiền hơn quán trước');
@@ -264,6 +270,17 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
   ok(L.fmt(3.4e15) === '3,4Qa' && L.fmt(2e18) === '2Qi', 'tiền rất lớn ở chi nhánh cuối hiện Qa, Qi');
 }
 
+{
+  const U = L.freshState();
+  U.money = 1e9;
+  ok(L.taskText(U, { k: 'upgn', v: 10 }) === 'Mua đủ 10 nâng cấp quán', 'nhiệm vụ "mua đủ nâng cấp" có lời mô tả đúng');
+  const p0 = L.taskProg(U, { k: 'upgn', v: 2 });
+  L.buyUpgrade(U, 'staff2');
+  L.buyUpgrade(U, 'sign');
+  const p1 = L.taskProg(U, { k: 'upgn', v: 2 });
+  ok(p0.cur === 0 && !p0.done && p1.cur === 2 && p1.done, 'nhiệm vụ "mua đủ nâng cấp" đếm đúng số nâng cấp đã mua');
+}
+
 console.log('Hướng dẫn');
 {
   const S = L.freshState();
@@ -438,7 +455,7 @@ console.log('Icon và manifest (thêm vào màn hình chính)');
 
 console.log('Mô phỏng cân bằng cả chuỗi quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
 {
-  const BAND = SHOPS.map(() => [10, 30]);
+  const BAND = SHOPS.map(() => [20, 35]);
   const run = playAll(11);
   run.forEach((r, i) => {
     const first = r.marks[0] / 60, min = r.t / 60;
@@ -447,7 +464,7 @@ console.log('Mô phỏng cân bằng cả chuỗi quán (người chơi giả mu
     ok(min >= BAND[i][0] && min <= BAND[i][1], `${r.shop}: ${min.toFixed(1)} phút nằm trong ${BAND[i][0]}–${BAND[i][1]} phút`);
     ok(first < 1.5, `${r.shop}: có thưởng đầu tiên trong 1,5 phút`);
     const gaps = r.marks.map((m, k) => m - (r.marks[k - 1] || 0));
-    ok(Math.max(...gaps) / 60 < 6, `${r.shop}: không phải chờ quá 6 phút giữa hai lần nhận thưởng (dài nhất ${(Math.max(...gaps) / 60).toFixed(1)})`);
+    ok(Math.max(...gaps) / 60 < 7, `${r.shop}: không phải chờ quá 7 phút giữa hai lần nhận thưởng (dài nhất ${(Math.max(...gaps) / 60).toFixed(1)})`);
   });
   ok(run.length === SHOPS.length, 'chơi qua được cả chuỗi quán');
 }
