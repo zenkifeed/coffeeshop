@@ -45,9 +45,10 @@ export const BEARS = [
 // profit (×tiền một ly, st = một trạm, danh sách trạm hoặc 'all').
 export const SHOPS = [
   {
-    id: 'gocpho', n: 'Góc Phố', d: 'Quán nhỏ đầu hẻm, bán cà phê cho người đi làm.',
+    id: 'gocpho', n: 'Góc Phố', d: 'Quán vỉa hè đầu hẻm, ghế nhựa, xe máy qua lại, bán cà phê cho người đi làm.',
     start: 6e4, gap: 2.6,
-    theme: { floor: 0xe8c9a6, plank: 0xdab68f, wall: 0xfff1e0, wainscot: 0xf4a6a6, rug: 0xa8e0d1, chair: 0xffb3c1, sky: 0xffe9d6, apron: 0xff8fa3, flags: [0xff8fa3, 0xffd166, 0x8fd3c1, 0xa0c4ff] },
+    // Góc Phố là quán vỉa hè: dựng cảnh đường phố (street.js) thay cho phòng trong nhà.
+    theme: { style: 'street', floor: 0xe6ddd2, plank: 0xd3c7b8, wall: 0xffd9b8, wainscot: 0xff8fa3, rug: 0xa8e0d1, chair: 0xff6b6b, sky: 0xcdeaf7, apron: 0xff8fa3, flags: [0xff8fa3, 0xffd166, 0x8fd3c1, 0xa0c4ff] },
     stations: [
       { id: 'den',    n: 'Cà phê đen',  c: '#3b2314', ice: true,  prop: 'espresso', price: 5e3,   time: 2.6, unlock: 0,     cost: 2e4 },
       { id: 'sua',    n: 'Cà phê sữa',  c: '#8a5a3b', ice: true,  prop: 'can',      price: 3e4,   time: 3,   unlock: 2.4e6, cost: 3e5 },

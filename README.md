@@ -33,7 +33,7 @@ Bốn bạn gấu lần lượt vào ca: **Gấu Nâu** đội mũ đỏ, **Gấ
 
 ### Nhiệm vụ và chi nhánh mới
 
-Mỗi quán có một danh sách nhiệm vụ, xong thì bấm **Nhận** lấy thưởng. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới: **Góc Phố → Sân Vườn → Phố Cổ**.
+Mỗi quán có một danh sách nhiệm vụ, xong thì bấm **Nhận** lấy thưởng. Nhận hết thưởng thì được chuyển sang chi nhánh mới lớn hơn, với món mới và không gian mới: **Góc Phố → Sân Vườn → Phố Cổ**. Góc Phố là quán vỉa hè với ghế nhựa, mái hiên và xe máy đỗ bên lề; các chi nhánh sau là quán trong nhà.
 
 ### Khi vắng mặt
 

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { LAYOUT, BEARS } from './data.js';
 import { motionScale } from './feel.js';
 import * as P from './props.js';
+import { buildStreet } from './street.js';
 import { buildBear, buildKid, animBear, animKid, emote as emoteActor, newActor, heartGeometry, BEAR_HEAD, BEAR_CARRY, KID_HEAD, KID_HAND } from './chars.js';
 
 const TOP_FRONT = 0.95, TOP_BACK = 0.95;
@@ -568,7 +569,7 @@ export function createScene(canvas, handlers) {
   /* ---------- đổi quán: phòng, màu, trạm ---------- */
   function setShop(shop) {
     if (room) scene.remove(room);
-    room = buildRoom(shop.theme);
+    room = shop.theme.style === 'street' ? buildStreet(shop.theme) : buildRoom(shop.theme);
     apron = shop.theme.apron;
     scene.add(room);
     scene.background = new THREE.Color(shop.theme.sky);
