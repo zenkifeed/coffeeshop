@@ -3,7 +3,8 @@
 import { CFG, SHOPS } from './data.js';
 import * as L from './logic.js';
 import { createScene } from './scene.js';
-import { sfx, unlock as audioUnlock, setMuted } from './audio.js';
+import { sfx, unlock as audioUnlock, setSfx, pauseAudio } from './audio.js';
+import { Music } from './music.js';
 import { opts, saveOpts, haptic } from './feel.js';
 import * as SV from './save.js';
 import { Coach } from './coach.js';
@@ -29,7 +30,9 @@ const scene = createScene($('c'), {
     else if (p.cust != null) scene.bounceCust(p.cust);
   },
 });
-setMuted(!opts.sound);
+setSfx(opts.sound);
+// Nhạc nền mặc định bật; chỉ tắt khi người chơi đã tắt trong Cài đặt.
+const musicOn = () => opts.music !== false;
 
 /* ---------- lưu ---------- */
 // Trộn bản lưu với trạng thái mặc định để bản lưu cũ thiếu trường mới vẫn chạy.
@@ -325,6 +328,7 @@ function doBuy(id) {
 }
 function milestone(id, lv) {
   const d = L.stDef(S, id);
+  Music.duck(1.4, 0.35);
   sfx.star();
   haptic('reward');
   flash('good');
@@ -423,6 +427,7 @@ function doMove() {
   cur.innerHTML = `<div><small>Chi nhánh mới</small><b>${esc(next.n)}</b></div>`;
   cur.hidden = false;
   cur.className = 'in';
+  Music.duck(3, 0.2);
   sfx.day();
   haptic('heavy');
   setTimeout(() => {
@@ -544,18 +549,20 @@ function settings() {
   closeSheet();
   const onOff = v => v ? 'Bật' : 'Tắt';
   modal(`<h2>Cài đặt</h2>
-    <div class="set"><button data-tap data-o="sound"><span>Âm thanh</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
+    <div class="set"><button data-tap data-o="music"><span>Nhạc nền</span><b class="${musicOn() ? 'on' : ''}">${onOff(musicOn())}</b></button>
+    <button data-tap data-o="sound"><span>Âm thanh hiệu ứng</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
     <button data-tap data-o="haptic"><span>Rung khi chạm</span><b class="${opts.haptic ? 'on' : ''}">${onOff(opts.haptic)}</b></button></div>
-    <p class="muted small">Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt, tính tối đa ${CFG.offlineCapH} giờ. Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
+    <p class="muted small">Nhạc nền và âm thanh hiệu ứng bật tắt riêng. Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt, tính tối đa ${CFG.offlineCapH} giờ. Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
   [['Khôi phục bản tự lưu', () => restoreDlg(settings)],
     ['Chơi lại từ đầu', () => modal('<h2>Xoá quán và chơi lại?</h2><p>Mọi tiến trình sẽ mất, chỉ giữ tên quán.</p>', [['Huỷ', settings], ['Xoá và chơi lại', () => applyState(null, 'Đã mở quán mới'), 1]])],
     ['Xong', () => {}, 1]]);
   $('card').querySelectorAll('[data-o]').forEach(b => {
     b.onclick = () => {
       const k = b.dataset.o;
-      opts[k] = !opts[k];
+      opts[k] = k === 'music' ? !musicOn() : !opts[k];
       saveOpts();
-      if (k === 'sound') setMuted(!opts.sound);
+      if (k === 'music') Music.set(opts.music);
+      if (k === 'sound') { setSfx(opts.sound); if (opts.sound) sfx.uiPrimary(); }
       if (k === 'haptic' && opts.haptic) haptic('primary');
       const t = b.querySelector('b');
       t.textContent = onOff(opts[k]);
@@ -622,6 +629,7 @@ function offlineDlg(since, next = () => {}) {
   countUp($('offAmt'), g, v => '+' + fmt(v), 900);
 }
 document.addEventListener('visibilitychange', () => {
+  pauseAudio(document.hidden);
   if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); save(); }
   else if (R.hiddenAt) { const t = R.hiddenAt; R.hiddenAt = 0; if (!modalOpen()) offlineDlg(t); }
 });
@@ -693,6 +701,8 @@ function splash() {
     if (done) return;
     done = true;
     audioUnlock();
+    // AudioContext chỉ chạy sau cú chạm đầu tiên, nên nhạc bắt đầu từ màn mở
+    Music.start(musicOn());
     sfx.uiPrimary();
     haptic('primary');
     sp.classList.add('out');
@@ -748,5 +758,5 @@ export function boot() {
   slowUi();
   splash();
   requestAnimationFrame(frame);
-  window.__game = { S: () => S, W: () => W, R, L, scene };
+  window.__game = { S: () => S, W: () => W, R, L, scene, Music };
 }

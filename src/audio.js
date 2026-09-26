@@ -1,7 +1,10 @@
 // Âm thanh tổng hợp bằng Web Audio, không cần file. Mọi tiếng đều lệch cao độ ngẫu nhiên vài phần trăm
 // để lặp lại trăm lần vẫn không nhàm. Trình duyệt chỉ cho phát sau cú chạm đầu tiên.
-let ctx = null, master = null;
-let muted = false;
+// Đồ thị: tiếng hiệu ứng → sfx ─┐
+//        nhạc nền (music.js) → music ─┴→ master → loa. Tắt riêng từng nhánh bằng gain của nhánh đó.
+let ctx = null, master = null, sfxBus = null;
+let sfxOn = true;
+const SFX_VOL = 0.55;
 
 function ensure() {
   if (ctx) return ctx;
@@ -9,18 +12,29 @@ function ensure() {
   if (!AC) return null;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.55;
+  master.gain.value = 1;
   master.connect(ctx.destination);
+  sfxBus = ctx.createGain();
+  sfxBus.gain.value = sfxOn ? SFX_VOL : 0;
+  sfxBus.connect(master);
   return ctx;
 }
-export function unlock() { const c = ensure(); if (c && c.state === 'suspended') c.resume(); }
-export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
+// Cho music.js dùng chung AudioContext và master. null nếu máy không hỗ trợ Web Audio.
+export function audioBus() { const c = ensure(); return c ? { ctx: c, master } : null; }
+export function unlock() { const c = ensure(); if (c && c.state === 'suspended') c.resume().catch(() => {}); }
+export function setSfx(on) { sfxOn = on; if (sfxBus) sfxBus.gain.setTargetAtTime(on ? SFX_VOL : 0, ctx.currentTime, 0.02); }
+// Tab ẩn thì dừng hẳn âm thanh (nhạc không vang ở tab nền), quay lại thì phát tiếp.
+export function pauseAudio(paused) {
+  if (!ctx) return;
+  if (paused && ctx.state === 'running') ctx.suspend().catch(() => {});
+  else if (!paused && ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
 
 const jit = (f, a = 0.04) => f * (1 + (Math.random() * 2 - 1) * a);
 
 function tone(freq, dur, { type = 'sine', vol = 0.3, delay = 0, slide = 0, attack = 0.006 } = {}) {
   const c = ensure();
-  if (!c || muted) return;
+  if (!c || !sfxOn) return;
   const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
   o.type = type;
   o.frequency.setValueAtTime(freq, t);
@@ -28,7 +42,7 @@ function tone(freq, dur, { type = 'sine', vol = 0.3, delay = 0, slide = 0, attac
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(vol, t + attack);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g).connect(master);
+  o.connect(g).connect(sfxBus);
   o.start(t);
   o.stop(t + dur + 0.03);
 }
@@ -44,7 +58,7 @@ function noiseBuffer(c) {
 }
 function noise(dur, { freq = 1200, q = 1, vol = 0.2, delay = 0, type = 'bandpass', slide = 0 } = {}) {
   const c = ensure();
-  if (!c || muted) return;
+  if (!c || !sfxOn) return;
   const t = c.currentTime + delay, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
   src.buffer = noiseBuffer(c);
   f.type = type;
@@ -53,7 +67,7 @@ function noise(dur, { freq = 1200, q = 1, vol = 0.2, delay = 0, type = 'bandpass
   f.Q.value = q;
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(sfxBus);
   src.start(t, Math.random() * 0.5);
   src.stop(t + dur + 0.03);
 }

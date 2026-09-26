@@ -5,7 +5,7 @@ Game quản lý chuỗi quán cà phê 3D chạy thẳng trên trình duyệt, l
 - **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
 
-Toàn bộ đồ hoạ 3D dựng bằng code Three.js, không có file ảnh hay model. Phòng và người là khối low-poly; đồ vật trên quầy (máy espresso, lon sữa, ấm, chai siro, ly mang đi) dựng bằng khối xoay và khối bo góc, bóng mịn, có phản chiếu nhẹ để ra chất inox, sứ, thuỷ tinh. Âm thanh tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
+Toàn bộ đồ hoạ 3D dựng bằng code Three.js, không có file ảnh hay model. Phòng và người là khối low-poly; đồ vật trên quầy (máy espresso, lon sữa, ấm, chai siro, ly mang đi) dựng bằng khối xoay và khối bo góc, bóng mịn, có phản chiếu nhẹ để ra chất inox, sứ, thuỷ tinh. Âm thanh và nhạc nền lo-fi tổng hợp bằng Web Audio, không có file âm thanh. Không cần build.
 
 ## Chạy trên máy
 
@@ -199,7 +199,13 @@ Tiền hiển thị theo k, tr, tỷ, nghìn tỷ. Người chơi mua tối ưu 
 
 ### Cài đặt
 
-Nút bánh răng trên thanh trên: âm thanh, rung khi chạm, "Khôi phục bản tự lưu" và "Chơi lại từ đầu" (giữ tên quán).
+Nút bánh răng trên thanh trên:
+
+- **Nhạc nền** và **Âm thanh hiệu ứng** bật tắt riêng. Nhạc nền là một bản lo-fi chill (piano điện, bass, trống chổi, kalimba, tiếng lách tách đĩa than) tự tổng hợp, hai đoạn luân phiên nên nghe lâu không lặp y hệt. Nhạc tự nhỏ lại lúc trạm qua mốc hay lúc chuyển chi nhánh, và dừng khi chuyển sang tab khác.
+- **Rung khi chạm.**
+- "Khôi phục bản tự lưu" và "Chơi lại từ đầu" (giữ tên quán).
+
+Các tuỳ chọn này lưu riêng trong trình duyệt, không mất khi chơi lại từ đầu.
 
 ## Lưu tiến trình
 
@@ -243,7 +249,8 @@ src/ui.js           phản hồi DOM dùng chung: icon SVG, thông báo, chữ b
 src/coach.js        bong bóng chỉ dẫn cho người mới (trỏ vào nút hoặc điểm 3D)
 src/save.js         lưu trữ: bản chính, bản dự phòng, phát hiện máy chặn lưu, nhận ra bản cũ
 src/feel.js         rung, tuỳ chọn người chơi, giảm chuyển động
-src/audio.js        âm thanh tổng hợp bằng Web Audio
+src/audio.js        tiếng hiệu ứng tổng hợp bằng Web Audio, nhánh âm lượng cho hiệu ứng và nhạc
+src/music.js        nhạc nền lo-fi tổng hợp, lên lịch nốt trước theo đồng hồ âm thanh
 tools/serve.mjs     server tĩnh không phụ thuộc gì
 tools/selftest.mjs  kiểm thử
 tools/balance.mjs   người chơi giả và mô phỏng cân bằng (dùng trong kiểm thử, chạy riêng được)
