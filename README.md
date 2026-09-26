@@ -51,7 +51,7 @@ Kim cương có được khi máy pha qua mốc cấp, khi nhận thưởng nhi�
 
 - **Tăng tốc ×2**: nút tia sét ở góc phải. Bấm là mọi món bán gấp đôi trong vài phút, miễn phí; hết giờ thì chờ hồi là bấm lại được.
 - **Món hot**: thỉnh thoảng một món thành món hot (nhãn có ngọn lửa), khách đổ xô gọi món đó và trả gấp đôi trong một lúc.
-- **Khách VIP**: khách đội vương miện thỉnh thoảng ghé quán, trả gấp nhiều lần và tặng kim cương.
+- **Khách VIP**: khách đội vương miện thỉnh thoảng ghé quán và chờ đích thân bạn pha. Chạm vào khách rồi giữ nút để rót, thả tay khi mặt nước vào vạch vàng: rót càng chuẩn khách trả càng hậu và tặng kim cương. Bận tay thì cứ kệ, một lúc sau các bạn gấu sẽ pha giúp, chỉ là tiền ít hơn nhiều.
 
 Những tính năng này mở dần khi quán phát triển, mỗi lần mở có bảng giới thiệu.
 

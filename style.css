@@ -312,7 +312,7 @@ button.ren svg { width: 18px; height: 18px; }
 }
 /* Giảm chuyển động: bỏ lắc, nhún, trượt dài; giữ mờ dần, chớp màu và nảy nhỏ để phản hồi không mất. */
 @media (prefers-reduced-motion: reduce) {
-  .breathe, .lbl .up, .lbl.lock.can, #goal.ready, .sp-in .logo, .sp-in .enter, .sp-wait, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full, .wel-hero, .trow .claim { animation: none !important; }
+  .breathe, .lbl .up, .lbl.lock.can, #goal.ready, .sp-in .logo, .sp-in .enter, .sp-wait, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full, .wel-hero, .trow .claim, .bub.vip.go { animation: none !important; }
   .coach-glow { animation: none !important; box-shadow: 0 0 0 4px #ffd23fdd, 0 3px 0 var(--ink) !important; }
   .sheet-card.enter, .trow, #curtain.in { animation-name: fadeIn !important; }
   .float { animation-name: fadeIn !important; animation-direction: reverse !important; }
@@ -379,6 +379,32 @@ body.pre #boostBtn, body.pre .h-g { opacity: 0; pointer-events: none; }
 @keyframes flick { to { scale: 1.15; rotate: 4deg; } }
 .lbl.hot { border-color: #ff8a3d; box-shadow: 0 2px 0 #c2410c, 0 0 0 3px #ff8a3d66; }
 .bub.vip { background: #fff3c4; border-color: #c9912a; box-shadow: 0 3px 0 #c9912a, 0 0 0 3px #ffd23f88; }
+/* khách VIP đang chờ người chơi: bong bóng mời chạm, vạch đỏ dưới đáy là thời gian chờ còn lại */
+.bub.vip.go { pointer-events: auto; cursor: pointer; animation: vipCall 1s ease-in-out infinite; }
+.bub.vip .tapme, .bub.vip .vt { display: none; }
+.bub.vip.go .tapme { display: block; position: absolute; left: 50%; top: -15px; transform: translateX(-50%); background: var(--red); color: #fff; font-size: 10px; font-weight: 800; line-height: 1; padding: 2px 7px 3px; border-radius: 9px; border: 2px solid var(--ink); white-space: nowrap; }
+.bub.vip.go .vt { display: block; position: absolute; left: 4px; right: 4px; bottom: 1px; height: 4px; border-radius: 2px; background: #3a231722; overflow: hidden; }
+.bub.vip.go .vt i { position: absolute; inset: 0; background: var(--red); transform-origin: left; }
+@keyframes vipCall { 50% { scale: 1.14; } }
+
+/* màn rót ly chiều khách VIP: giữ nút để rót, thả ở vạch vàng */
+#vipGame { position: fixed; inset: 0; z-index: 13; display: flex; align-items: center; justify-content: center; background: #3a231766; backdrop-filter: blur(3px); animation: fadeIn .22s ease; padding: 16px; }
+.vg-card { position: relative; width: min(320px, 100%); background: var(--panel); border: 3px solid var(--ink); border-radius: 22px; box-shadow: var(--shadow); padding: 14px 16px 16px; text-align: center; animation: bubIn .32s var(--ease-pop); }
+.vg-card.shake { animation: vgShake .4s ease; }
+.vg-card .x { position: absolute; right: 8px; top: 8px; }
+.vg-head { display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 10px; text-align: left; }
+.vg-head > svg { width: 34px; height: 34px; flex: none; }
+.vg-head b { display: block; font-size: 18px; }
+.vg-head small { color: var(--soft); }
+.vg-cup { position: relative; width: 118px; height: 185px; margin: 0 auto 14px; border: 3.5px solid var(--ink); border-top-width: 2.5px; border-radius: 10px 10px 26px 26px; background: #fffdf8; overflow: hidden; }
+.vg-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: var(--c); transform: scaleY(0); transform-origin: bottom; opacity: .92; }
+.vg-fill::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: #ffffff66; }
+.vg-band { position: absolute; left: 0; right: 0; background: #4fa88322; border-top: 2px dashed var(--mint); border-bottom: 2px dashed var(--mint); z-index: 1; }
+.vg-gold { position: absolute; left: 0; right: 0; background: #ffd23f99; border-top: 2px solid #c9912a; border-bottom: 2px solid #c9912a; z-index: 1; }
+.vg-res { position: absolute; left: 4px; right: 4px; top: 40%; z-index: 2; font-weight: 800; font-style: normal; font-size: 15px; color: var(--ink); -webkit-text-stroke: 4px #fff; paint-order: stroke fill; animation: bubIn .3s var(--ease-pop); }
+.vg-res.perfect { color: #c9912a; font-size: 17px; }
+.vg-hold { width: 100%; touch-action: none; -webkit-user-select: none; user-select: none; font-size: 15px; }
+@keyframes vgShake { 25% { translate: -6px 0; } 60% { translate: 5px 0; } }
 
 .pips { display: flex; gap: 3px; margin-top: 4px; }
 .pips i { width: 16px; height: 6px; border-radius: 3px; background: #e7d7c0; }

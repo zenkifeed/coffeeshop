@@ -189,6 +189,29 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
   ok(Math.abs(L.offlineRate(B) - L.rate(B) / CFG.boost.mul) < 1e-6 * L.rate(B), 'tiền lúc vắng mặt không tính tăng tốc');
   ok(L.tickBoost(B, CFG.boost.dur + 1) === 'end' && L.boostState(B) === 'cd' && Math.abs(B.boost.cd - (CFG.boost.cd - 1)) < 1e-9, 'hết giờ tăng tốc thì vào thời gian hồi');
   ok(L.tickBoost(B, CFG.boost.cd) === 'ready' && L.boostState(B) === 'ready', 'hồi xong thì bấm lại được');
+  // rót ly cho khách VIP: vạch theo seed nằm gọn trong ly, chấm hạng đúng vùng
+  {
+    const bnd = L.vipBand(0.4);
+    ok(bnd.lo < bnd.center && bnd.center < bnd.hi && bnd.hi < 1 && bnd.lo > 0, 'vạch rót nằm gọn trong ly');
+    ok(L.vipGrade(0.4, bnd.center) === 'perfect' && L.vipGrade(0.4, bnd.center + bnd.g + 0.01) === 'good'
+      && L.vipGrade(0.4, bnd.hi + 0.01) === 'miss' && L.vipGrade(0.4, 0) === 'miss', 'chấm hạng rót: vạch vàng, vùng ngon, trượt');
+  }
+  // khách VIP chờ người chơi; mở màn rót thì đồng hồ chờ dừng; quá giờ mới tới tay gấu
+  {
+    const H = L.freshState(1); H.money = 1e12;
+    const WH = L.newWorld(H), rh = seeded(9);
+    WH.vipT = 0.01;
+    let v = null;
+    for (let t = 0; t < 40 && !(v = L.vipWaiting(WH)); t += 0.1) L.step(H, WH, 0.1, rh);
+    ok(!!v, 'khách VIP tới quầy và đứng chờ người chơi rót');
+    L.holdVip(WH, v.id, true);
+    for (let t = 0; t < CFG.vip.wait + 10; t += 0.1) L.step(H, WH, 0.1, rh);
+    ok(!v.rush && L.vipWaiting(WH) === v, 'đang mở màn rót thì khách chờ mãi, gấu không giành');
+    L.holdVip(WH, v.id, false);
+    let rushed = false;
+    for (let t = 0; t < CFG.vip.wait + 5 && !rushed; t += 0.1) for (const e of L.step(H, WH, 0.1, rh)) if (e.k === 'vipRush') rushed = true;
+    ok(rushed && v.rush, 'đóng màn rót rồi bỏ lơ quá lâu thì gấu pha giúp');
+  }
   // khách VIP và món hot trong mô phỏng
   const V = L.freshState(); V.money = 1e15;
   SHOPS[0].stations.forEach(s => { if (!L.lvOf(V, s.id)) L.unlock(V, s.id); });
@@ -196,16 +219,27 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
   V.claimed = Object.fromEntries(Object.entries(V.claimed).slice(0, 6));
   ['staff2', 'staff3', 'staff4', 'queue4', 'queue5'].forEach(id => L.buyUpgrade(V, id));
   const W = L.newWorld(V), rng = seeded(21);
-  let vips = 0, vipOk = true, hots = 0, hotServe = 0, gems = V.gems;
+  // người chơi rót tay cho khách VIP có seed < 0.5, số còn lại bỏ lơ cho gấu pha giúp
+  let vips = 0, pours = 0, rushes = 0, autoOk = true, pourOk = true, hots = 0, hotServe = 0, gems = V.gems;
   for (let t = 0; t < 900; t += 0.1) {
     for (const e of L.step(V, W, 0.1, rng)) {
-      if (e.k === 'serve' && e.vip) { vips++; if (e.amt !== L.profitOf(V, e.st) * CFG.vip.mul * (e.hot ? CFG.hot.mul : 1) || e.gems !== CFG.vip.gems) vipOk = false; }
+      if (e.k === 'spawn' && e.c.vip) vips++;
+      if (e.k === 'vipRush') rushes++;
+      if (e.k === 'serve' && e.vip && (e.amt !== L.profitOf(V, e.st) * CFG.vip.auto.mul * (e.hot ? CFG.hot.mul : 1) || e.gems !== CFG.vip.auto.gems)) autoOk = false;
       if (e.k === 'hot') hots++;
       if (e.k === 'serve' && e.hot) hotServe++;
     }
+    const vw = L.vipWaiting(W);
+    if (vw && vw.seed < 0.5) {
+      const r = L.serveVip(V, W, vw.id, 'perfect');
+      if (!r || r.amt !== L.profitOf(V, r.st) * CFG.vip.q.perfect.mul * (r.hot ? CFG.hot.mul : 1)) pourOk = false;
+      else { pours++; gems += r.gems; }
+    }
   }
   ok(vips >= 4 && vips <= 12, `15 phút có khoảng 6–10 khách VIP (đếm được ${vips})`);
-  ok(vipOk && V.gems === gems + vips * CFG.vip.gems, 'khách VIP trả đúng gấp nhiều lần và tặng kim cương');
+  ok(pours > 0 && rushes > 0, `có khách được rót tay, có khách gấu pha giúp (${pours} rót tay, ${rushes} gấu pha)`);
+  ok(pourOk && V.gems === gems, 'rót tay trả tiền theo hạng và tặng kim cương');
+  ok(autoOk, 'khách VIP bị bỏ lơ: gấu pha với giá an ủi, không tặng kim cương');
   ok(hots >= 5 && hotServe > 0, `món hot xuất hiện định kỳ và có khách gọi (${hots} lượt, ${hotServe} ly)`);
   const N = L.freshState(), WN = L.newWorld(N), rn = seeded(5);
   let early = 0;

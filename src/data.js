@@ -17,7 +17,14 @@ export const CFG = {
   gemsPerTask: 1,            // mỗi lần nhận thưởng nhiệm vụ
   gemsMove: 5,               // mỗi lần chuyển sang chi nhánh mới
   boost: { mul: 2, dur: 180, cd: 420 },                           // tăng tốc: tiền ×2 trong 3 phút, hồi 7 phút
-  vip: { every: [90, 150], mul: 5, gems: 1 },                     // khách VIP: khoảng 1,5–2,5 phút một người, trả gấp 5
+  // khách VIP: khoảng 1,5–2,5 phút một người. Tới quầy thì chờ người chơi tự tay rót ly trong wait giây,
+  // quá giờ thì gấu pha giúp với giá auto. Rót: giữ pour giây thì đầy ly; band = bề rộng vùng ngon,
+  // gold = bề rộng vạch vàng (tỷ lệ chiều cao ly); q = tiền và kim cương theo hạng rót.
+  vip: {
+    every: [90, 150], wait: 25, pour: 1.6, band: 0.26, gold: 0.09,
+    q: { perfect: { mul: 10, gems: 2 }, good: { mul: 5, gems: 1 }, miss: { mul: 2, gems: 0 } },
+    auto: { mul: 2, gems: 0 },
+  },
   hot: { every: [80, 140], dur: 45, mul: 2, share: 0.5 },         // món hot: 45 giây, nửa số khách gọi món này
 };
 
@@ -26,7 +33,7 @@ export const CFG = {
 export const FEATURES = {
   boost: { n: 'Tăng tốc ×2', d: 'Bấm nút tăng tốc: mọi món bán gấp đôi trong 3 phút, miễn phí.', tasks: 2 },
   hot:   { n: 'Món hot', d: 'Thỉnh thoảng một món thành món hot: khách gọi nhiều hơn và trả gấp đôi.', stations: 2 },
-  vip:   { n: 'Khách VIP', d: 'Khách đội vương miện thỉnh thoảng ghé quán, trả gấp 5 lần và tặng kim cương.', tasks: 5 },
+  vip:   { n: 'Khách VIP', d: 'Khách đội vương miện thỉnh thoảng ghé quán. Chạm vào khách rồi tự tay rót: trúng vạch vàng thì tiền gấp nhiều lần, kèm kim cương.', tasks: 5 },
   vault: { n: 'Kho báu', d: 'Dùng kim cương mua buff vĩnh viễn, giữ qua mọi chi nhánh.', gems: 1 },
 };
 
@@ -152,7 +159,7 @@ export const SHOPS = [
       { k: 'upg', id: 'grind',             r: 1e7 },
       { k: 'unlock', st: 'caramel',        r: 3e7 },
       { k: 'level', st: 'sinhto', v: 25,   r: 1e8 },
-      { k: 'served', v: 380,               r: 1.5e8 },
+      { k: 'served', v: 360,               r: 1.5e8 },
     ],
   },
   {

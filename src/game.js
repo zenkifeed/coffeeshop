@@ -34,7 +34,11 @@ const scene = createScene($('c'), {
       scene.burstAt({ staff: p.staff, head: true }, 'heart', 2);
       sfx.boop();
       haptic('tap');
-    } else if (p.cust != null) { scene.emote({ cust: p.cust }, 'wave'); sfx.boop(); }
+    } else if (p.cust != null) {
+      const c = W.cust.find(x => x.id === p.cust);
+      if (vipTappable(c)) openVipGame(c.id);
+      else { scene.emote({ cust: p.cust }, 'wave'); sfx.boop(); }
+    }
   },
 });
 setSfx(opts.sound);
@@ -146,10 +150,19 @@ function bubbles() {
       el = document.createElement('div');
       el.className = 'bub' + (c.vip ? ' vip' : '');
       el.innerHTML = drinkIcon(d.c, d.ice);
+      if (c.vip) {
+        el.insertAdjacentHTML('beforeend', '<b class="tapme">Chạm!</b><span class="vt"><i></i></span>');
+        el.addEventListener('pointerdown', () => { if (vipTappable(c)) openVipGame(c.id); });
+      }
       $('bubbles').appendChild(el);
       bubbleEls.set(c.id, el);
     }
     el.classList.toggle('taken', !!c.who);
+    if (c.vip) {
+      el.classList.toggle('go', vipTappable(c));
+      const vt = el.querySelector('.vt i');
+      if (vt) vt.style.transform = `scaleX(${Math.max(0, 1 - (c.wt || 0) / CFG.vip.wait).toFixed(3)})`;
+    }
     const p = scene.headScreen(c.id);
     if (p) el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`;
   }
@@ -181,7 +194,8 @@ function handle(ev) {
       sfx.cash();
     } else if (e.k === 'brew') { if (sfxOk('brew')) sfx.brew(L.stDef(S, e.st).prop); }
     else if (e.k === 'ready') { if (sfxOk('ready')) sfx.ding(L.stIndex(S, e.st)); }
-    else if (e.k === 'spawn' && e.c.vip) { sfx.vip(); toast(`${ICON.crown} <b>Khách VIP</b> ghé quán! Trả gấp ${CFG.vip.mul} lần, tặng kim cương`); }
+    else if (e.k === 'spawn' && e.c.vip) { sfx.vip(); toast(`${ICON.crown} <b>Khách VIP</b> ghé quán! Chạm vào khách để tự tay pha`); }
+    else if (e.k === 'vipRush') { sfx.meh(); toast(`${ICON.crown} Khách VIP chờ lâu quá, các bạn gấu pha giúp — chỉ được gấp ${CFG.vip.auto.mul}`, true); }
     else if (e.k === 'hot') {
       const d = L.stDef(S, e.st);
       sfx.hot();
@@ -203,6 +217,95 @@ function handle(ev) {
       toast(`<b>${b.n}</b> đã vào ca!`);
     }
   }
+}
+
+/* ---------- chiều khách VIP: tự tay rót ly ---------- */
+// Cơ chế từ bản chơi tay đầu tiên của game, nay dành riêng cho khách VIP: giữ nút để rót,
+// thả tay khi mặt nước vào vạch vàng. Vạch mỗi khách một chỗ (theo seed), rót càng chuẩn thưởng càng lớn.
+const vipTappable = c => !!(c && c.vip && c.state === 'wait' && !c.rush && !c.who);
+function openVipGame(id) {
+  if (R.vip || modalOpen() || R.paused) return;
+  const c = W.cust.find(x => x.id === id);
+  if (!vipTappable(c)) return;
+  closeSheet();
+  L.holdVip(W, id, true);
+  const d = L.stDef(S, c.st), b = L.vipBand(c.seed), box = $('vipGame');
+  const pct = v => (v * 100).toFixed(1) + '%';
+  box.innerHTML = `<div class="vg-card">
+    <button class="x" id="vgX" aria-label="Đóng">✕</button>
+    <div class="vg-head">${ICON.crown}<div><b>Chiều khách VIP!</b><small>Món: ${esc(d.n)}</small></div></div>
+    <div class="vg-cup" style="--c:${d.c}">
+      <i class="vg-band" style="bottom:${pct(b.lo)};height:${pct(b.hi - b.lo)}"></i>
+      <i class="vg-gold" style="bottom:${pct(b.center - b.g)};height:${pct(b.g * 2)}"></i>
+      <i class="vg-fill"></i>
+      <em class="vg-res" hidden></em>
+    </div>
+    <button class="big vg-hold" id="vgHold" data-quiet>Giữ để rót · thả ở vạch vàng</button>
+  </div>`;
+  box.hidden = false;
+  sfx.vip();
+  haptic('primary');
+  const st = { id, k: 0, pouring: false, done: false, raf: 0, last: performance.now(), tickN: -1 };
+  R.vip = st;
+  const fill = box.querySelector('.vg-fill');
+  const tick = now => {
+    if (st.done) return;
+    const dt = Math.min(0.05, (now - st.last) / 1000);
+    st.last = now;
+    if (st.pouring) {
+      st.k += dt / CFG.vip.pour;
+      if (st.k >= 1) { st.k = 1; return finish(); }   // rót tới miệng ly: tràn
+      if (((st.k * 26) | 0) !== st.tickN) { st.tickN = (st.k * 26) | 0; sfx.tick(); }
+    }
+    fill.style.transform = `scaleY(${st.k.toFixed(4)})`;
+    st.raf = requestAnimationFrame(tick);
+  };
+  const down = e => { if ((e && e.button) || st.pouring || st.done) return; st.pouring = true; haptic('tap'); };
+  const up = () => { if (!st.pouring || st.done) return; finish(); };
+  function finish() {
+    st.done = true;
+    cancelAnimationFrame(st.raf);
+    fill.style.transform = `scaleY(${st.k.toFixed(4)})`;
+    const grade = L.vipGrade(c.seed, st.k), res = L.serveVip(S, W, id, grade);
+    if (!res) return closeVipGame();
+    save();
+    const q = CFG.vip.q[grade], em = box.querySelector('.vg-res');
+    em.hidden = false;
+    em.textContent = grade === 'perfect' ? `Chuẩn vạch vàng! ×${q.mul}` : grade === 'good' ? `Ly ngon! ×${q.mul}` : st.k >= 1 ? `Ôi, tràn ly… ×${q.mul}` : `Chưa tới vạch ×${q.mul}`;
+    em.className = 'vg-res ' + grade;
+    if (grade === 'perfect') { sfx.perfect(); haptic('reward'); }
+    else if (grade === 'good') { sfx.star(); haptic('reward'); }
+    else { sfx.meh(); haptic('error'); retrigger(box.querySelector('.vg-card'), 'shake'); }
+    // đóng màn rồi mới cho tiền bay từ khách về két, để không bị màn rót che mất
+    setTimeout(() => {
+      closeVipGame();
+      const hp = scene.headScreen(id) || { x: innerWidth / 2, y: innerHeight / 2 };
+      floatText(hp.x, hp.y - 8, '+' + fmt(res.amt), 'money' + (grade === 'miss' ? '' : ' vip'));
+      coinFly(hp.x, hp.y, grade === 'perfect' ? 6 : grade === 'good' ? 4 : 2);
+      if (res.gems) setTimeout(() => { floatText(hp.x, hp.y - 46, '+' + res.gems + ' ' + ICON.gem, 'gemtx'); coinFly(hp.x, hp.y - 20, res.gems, false, true); }, 200);
+      scene.emote({ cust: id }, 'love');
+      scene.burstAt({ cust: id, head: true }, grade === 'miss' ? 'heart' : 'confetti', grade === 'perfect' ? 16 : 8);
+      if (grade === 'perfect') { scene.burstAt({ cust: id, head: true }, 'star', 6); flash('good'); scene.punch(0.25); }
+      sfx.cash();
+    }, grade === 'miss' ? 900 : 1100);
+  }
+  $('vgHold').addEventListener('pointerdown', down);
+  $('vgHold').addEventListener('pointercancel', up);
+  addEventListener('pointerup', up);
+  st.up = up;
+  $('vgX').onclick = () => { sfx.ui(); closeVipGame(); };
+  st.raf = requestAnimationFrame(tick);
+}
+// Đóng màn rót (chưa rót xong thì khách vẫn đứng chờ, không mất lượt).
+function closeVipGame() {
+  const st = R.vip;
+  if (!st) return;
+  R.vip = null;
+  cancelAnimationFrame(st.raf);
+  removeEventListener('pointerup', st.up);
+  L.holdVip(W, st.id, false);
+  $('vipGame').hidden = true;
+  $('vipGame').innerHTML = '';
 }
 
 /* ---------- thanh trên, dòng nhiệm vụ, thanh dưới ---------- */
@@ -262,7 +365,7 @@ function slowUi() {
 const FEAT_ICON = { boost: 'bolt', hot: 'flame', vip: 'crown', vault: 'vault' };
 // Tính năng vừa mở: hiện bảng ăn mừng khi không có bảng nào khác đang mở, từng cái một, có nút dùng thử ngay.
 function unlockQueue() {
-  if (!R.bootDone || modalOpen() || R.sheet || R.paused) return;
+  if (!R.bootDone || modalOpen() || R.sheet || R.paused || R.vip) return;
   const k = L.newFeatures(S)[0];
   if (!k) return;
   const f = FEATURES[k];
@@ -506,7 +609,8 @@ function sheetTasks() {
   const ts = L.tasks(S), got = ts.filter(t => t.claimed).length, next = SHOPS[S.shop + 1];
   const rows = ts.map((t, i) => {
     const state = t.claimed ? ' got' : t.done ? ' ready' : '';
-    const right = t.claimed ? '<em>Đã nhận</em>' : t.done ? `<button class="pri claim" data-claim="${t.i}" data-quiet>Nhận +${fmt(t.r)} <i class="gi">${ICON.gem}</i></button>` : `<em class="rw">${t.need > 1 ? `${t.cur}/${t.need} · ` : ''}+${fmt(t.r)} <i class="gi">${ICON.gem}</i></em>`;
+    const rw = `+${fmt(t.r)}<i class="gi">${ICON.coin}</i> +${CFG.gemsPerTask}<i class="gi">${ICON.gem}</i>`;
+    const right = t.claimed ? '<em>Đã nhận</em>' : t.done ? `<button class="pri claim" data-claim="${t.i}" data-quiet>Nhận ${rw}</button>` : `<em class="rw">${t.need > 1 ? `${t.cur}/${t.need} · ` : ''}${rw}</em>`;
     return `<div class="trow${state}" style="--i:${i}"><i class="tic">${t.done ? ICON.check : '<b></b>'}</i><span>${esc(L.taskText(S, t))}</span>${right}</div>`;
   }).join('');
   const foot = L.canMove(S) ? `<button class="big go breathe" id="moveBtn">Chuyển sang ${esc(next.n)} ➜</button>`
@@ -807,7 +911,7 @@ function offlineDlg(since, next = () => {}) {
 }
 document.addEventListener('visibilitychange', () => {
   pauseAudio(document.hidden);
-  if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); save(); Cloud.push(S); }
+  if (document.hidden) { R.hiddenAt = Date.now(); stopHold(); closeVipGame(); save(); Cloud.push(S); }
   else if (R.hiddenAt) { const t = R.hiddenAt; R.hiddenAt = 0; if (!modalOpen()) offlineDlg(t); else L.tickBoost(S, (Date.now() - t) / 1000); }
 });
 window.addEventListener('pagehide', () => save());

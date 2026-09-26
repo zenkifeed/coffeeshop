@@ -52,6 +52,9 @@ export function playShop(S, rng, maxMin = 240) {
   let t = 0, next = 0, checkT = 60, earned0 = S.earned, est = [];
   while (t < maxMin * 60) {
     L.step(S, W, DT, rng);
+    // người chơi mô phỏng luôn để mắt tới khách VIP: rót tay chuẩn vạch vàng ngay khi khách tới quầy
+    const vw = L.vipWaiting(W);
+    if (vw) L.serveVip(S, W, vw.id, 'perfect');
     t += DT;
     if (t >= next) {
       next = t + 0.5;

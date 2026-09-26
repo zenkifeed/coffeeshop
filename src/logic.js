@@ -271,6 +271,8 @@ export function step(S, W, dt, rng = Math.random) {
   for (let i = W.cust.length - 1; i >= 0; i--) {
     const c = W.cust[i];
     if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = FACE_IN; ev.push({ k: 'order', c }); }
+    // khách VIP đứng chờ người chơi tự tay rót; chờ quá lâu thì nhờ gấu pha (held: đang mở màn rót, đồng hồ dừng)
+    else if (c.state === 'wait' && c.vip && !c.rush && !c.who && !c.held && (c.wt = (c.wt || 0) + dt) >= CFG.vip.wait) { c.rush = true; ev.push({ k: 'vipRush', c }); }
     else if (c.state === 'got' && (c.t += dt) > 0.55) { c.state = 'out'; [c.tx, c.tz] = L.door; }
     else if (c.state === 'out' && walk(c, CUST_SPEED * 1.1, dt)) { W.cust.splice(i, 1); ev.push({ k: 'gone', c }); }
   }
@@ -279,7 +281,7 @@ export function step(S, W, dt, rng = Math.random) {
     if (s.state === 'idle') {
       // khách chờ lâu nhất trước, bỏ qua khách mà trạm của món đang kín chỗ
       for (const c of W.cust) {
-        if (c.state !== 'wait' || c.who) continue;
+        if (c.state !== 'wait' || c.who || (c.vip && !c.rush)) continue;   // khách VIP để dành cho người chơi, trừ khi đã chờ quá lâu
         const spot = freeSpot(W, S, c.st);
         if (spot < 0) continue;
         W.spots[c.st][spot] = s.id;
@@ -305,8 +307,9 @@ export function step(S, W, dt, rng = Math.random) {
     } else if (s.state === 'deliver' && walk(s, D.walk, dt)) {
       const c = W.cust.find(x => x.id === s.job.c);
       const hot = hotSt(W) === s.job.st, vip = !!(c && c.vip);
-      const amt = profitOf(S, s.job.st, undefined, D) * (hot ? CFG.hot.mul : 1) * (vip ? CFG.vip.mul : 1);
-      const gems = vip ? CFG.vip.gems : 0;
+      // VIP tới tay gấu nghĩa là người chơi đã bỏ lỡ: trả giá an ủi, không tặng kim cương
+      const amt = profitOf(S, s.job.st, undefined, D) * (hot ? CFG.hot.mul : 1) * (vip ? CFG.vip.auto.mul : 1);
+      const gems = vip ? CFG.vip.auto.gems : 0;
       S.money += amt; S.earned += amt; S.served++; S.gems += gems;
       S.life.earned += amt; S.life.served++;
       ev.push({ k: 'serve', s, c, st: s.job.st, amt, hot, vip, gems });
@@ -321,6 +324,28 @@ export function brewProgress(W, st) {
   let p = -1;
   for (const s of W.staff) if (s.state === 'brew' && s.job.st === st) p = Math.max(p, Math.min(1, s.t / s.dur));
   return p;
+}
+
+/* ---------- khách VIP: người chơi tự tay rót ly ---------- */
+// Khách VIP đang chờ người chơi (chưa quá giờ, chưa gấu nào nhận) hoặc null.
+export const vipWaiting = W => W.cust.find(c => c.vip && c.state === 'wait' && !c.rush && !c.who) || null;
+// Mở hay đóng màn rót: khách kiên nhẫn đứng chờ, đồng hồ chờ tạm dừng.
+export function holdVip(W, id, held) { const c = W.cust.find(x => x.id === id); if (c) c.held = !!held; return c || null; }
+// Vạch rót của một khách, tính từ seed để mỗi khách một chỗ: lo..hi là vùng ngon, center ± g là vạch vàng.
+export function vipBand(seed) { const center = 0.55 + seed * 0.25; return { center, lo: center - CFG.vip.band / 2, hi: center + CFG.vip.band / 2, g: CFG.vip.gold / 2 }; }
+// Chấm mức rót k (0..1): trúng vạch vàng, trong vùng ngon, hay trượt.
+export function vipGrade(seed, k) { const b = vipBand(seed); return Math.abs(k - b.center) <= b.g ? 'perfect' : k >= b.lo && k <= b.hi ? 'good' : 'miss'; }
+// Người chơi rót xong: tính tiền theo hạng, khách cầm ly rời quầy. Null nếu khách không còn chờ.
+export function serveVip(S, W, id, grade) {
+  const c = W.cust.find(x => x.id === id);
+  if (!c || !c.vip || c.state !== 'wait' || c.rush || c.who) return null;
+  const q = CFG.vip.q[grade] || CFG.vip.q.miss;
+  const hot = hotSt(W) === c.st;
+  const amt = profitOf(S, c.st, undefined, derived(S)) * (hot ? CFG.hot.mul : 1) * q.mul;
+  S.money += amt; S.earned += amt; S.served++; S.gems += q.gems;
+  S.life.earned += amt; S.life.served++;
+  c.state = 'got'; c.t = 0; c.held = false;
+  return { amt, gems: q.gems, grade, c, st: c.st, hot };
 }
 
 /* ---------- ước lượng thu nhập mỗi giây ---------- */
