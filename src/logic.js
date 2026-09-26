@@ -130,7 +130,7 @@ export function newWorld(S) {
 }
 function addStaff(W) {
   const x = LAYOUT.staffHome[W.staff.length % LAYOUT.staffHome.length], z = (LAYOUT.serveZ + LAYOUT.workZ) / 2;
-  const s = { id: ++W.uid, x, z, tx: x, tz: z, face: Math.PI, moving: false, state: 'idle', job: null, t: 0, dur: 0, carry: null };
+  const s = { id: ++W.uid, x, z, tx: x, tz: z, face: 0, moving: false, state: 'idle', job: null, t: 0, dur: 0, carry: null };
   W.staff.push(s);
   return s;
 }
@@ -149,6 +149,8 @@ function freeSpot(W, S, st) {
   return -1;
 }
 const CUST_SPEED = 1.7;
+// Hướng quay: 0 = nhìn về phía khách (+z), π = nhìn vào quầy pha sát tường.
+const FACE_OUT = 0, FACE_IN = Math.PI;
 
 // Chạy mô phỏng thêm dt giây. Trả về danh sách sự kiện để game phát âm thanh và hiệu ứng.
 export function step(S, W, dt, rng = Math.random) {
@@ -173,7 +175,7 @@ export function step(S, W, dt, rng = Math.random) {
 
   for (let i = W.cust.length - 1; i >= 0; i--) {
     const c = W.cust[i];
-    if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = 0; ev.push({ k: 'order', c }); }
+    if (c.state === 'in' && walk(c, CUST_SPEED, dt)) { c.state = 'wait'; c.face = FACE_IN; ev.push({ k: 'order', c }); }
     else if (c.state === 'got' && (c.t += dt) > 0.55) { c.state = 'out'; [c.tx, c.tz] = L.door; }
     else if (c.state === 'out' && walk(c, CUST_SPEED * 1.1, dt)) { W.cust.splice(i, 1); ev.push({ k: 'gone', c }); }
   }
@@ -195,7 +197,7 @@ export function step(S, W, dt, rng = Math.random) {
       }
     }
     if (s.state === 'go' && walk(s, D.walk, dt)) {
-      s.state = 'brew'; s.t = 0; s.dur = prepOf(S, s.job.st, D); s.face = 0;
+      s.state = 'brew'; s.t = 0; s.dur = prepOf(S, s.job.st, D); s.face = FACE_IN;
       ev.push({ k: 'brew', s, st: s.job.st });
     } else if (s.state === 'brew' && (s.t += dt) >= s.dur) {
       W.spots[s.job.st][s.job.spot] = 0;
@@ -212,7 +214,7 @@ export function step(S, W, dt, rng = Math.random) {
       S.life.earned += amt; S.life.served++;
       ev.push({ k: 'serve', s, c, st: s.job.st, amt });
       if (c) { c.state = 'got'; c.t = 0; }
-      s.carry = null; s.job = null; s.state = 'idle'; s.face = Math.PI;
+      s.carry = null; s.job = null; s.state = 'idle'; s.face = FACE_OUT;
     }
   }
   return ev;

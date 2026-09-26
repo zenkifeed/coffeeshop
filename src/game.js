@@ -125,7 +125,7 @@ function labelPos() {
   labelEls.forEach((el, id) => {
     const p = scene.stationScreen(id);
     if (!p) return;
-    el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, 2px)`;
+    el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, calc(-100% - 2px))`;
     if (el._bar) { const b = L.brewProgress(W, id); el._bar.style.transform = `scaleX(${Math.max(0, b).toFixed(3)})`; el._bar.parentElement.classList.toggle('on', b >= 0); }
   });
 }
@@ -169,6 +169,11 @@ function handle(ev) {
       if (e.c) { scene.burstAt({ cust: e.c.id }, 'coin', 3); scene.emote({ cust: e.c.id }, 'love'); scene.burstAt({ cust: e.c.id, head: true }, 'heart', 2); }
       sfx.cash();
     } else if (e.k === 'brew') scene.press(e.st, 0.1);
+    else if (e.k === 'order') {
+      // khách vừa tới quầy: một bạn gấu đang rảnh vẫy tay chào
+      const idle = W.staff.filter(s => s.state === 'idle');
+      if (idle.length && Math.random() < 0.6) scene.emote({ staff: idle[Math.floor(Math.random() * idle.length)].id }, 'wave');
+    }
     else if (e.k === 'hire') {
       // người mới chỉ có trong cảnh sau lần đồng bộ kế tiếp
       const b = BEARS[W.staff.indexOf(e.s) % BEARS.length];

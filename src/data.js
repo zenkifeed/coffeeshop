@@ -14,17 +14,18 @@ export const CFG = {
   backupEvery: 300,          // giây chơi giữa hai bản dự phòng
 };
 
-// Bố cục quán tính bằng mét, dùng chung cho mô phỏng (logic.js) và cảnh 3D (scene.js).
-// Trục z: khách ở phía âm, quầy trước ở z = frontZ, lối đi của nhân viên, quầy pha ở z = backZ.
+// Bố cục quán tính bằng mét, dùng chung cho mô phỏng (logic.js) và cảnh 3D (scene.js). Máy quay ở phía +z nhìn vào:
+// khách đứng gần máy quay (z dương), quầy đưa ly ở giữa, gấu đứng sau quầy mặt hướng ra khách,
+// trạm pha trên quầy sát tường (z âm), mặt máy cũng quay ra phía khách.
 export const LAYOUT = {
-  door: [3.6, -4.4],
-  custZ: -1.25,
-  frontZ: -0.2,
-  serveZ: 0.5,               // chỗ nhân viên đứng đưa ly qua quầy
-  workZ: 1.2,                // chỗ nhân viên đứng pha trước trạm
-  backZ: 2.0,
+  door: [3.9, 5.2],          // khách vào và ra từ mép dưới màn hình
+  custZ: 1.0,
+  frontZ: 0.1,
+  serveZ: -0.7,              // chỗ gấu đứng đưa ly qua quầy
+  workZ: -1.35,              // chỗ gấu đứng pha trước trạm
+  backZ: -2.2,
   stationX: [-2.2, -1.1, 0, 1.1, 2.2],
-  spotDX: [0, -0.3, 0.3],  // chỗ đứng thứ 1, 2, 3 trước một trạm
+  spotDX: [0, -0.3, 0.3],    // chỗ đứng thứ 1, 2, 3 trước một trạm
   slotsX: { 3: [-1.5, 0, 1.5], 4: [-1.95, -0.65, 0.65, 1.95], 5: [-2.2, -1.1, 0, 1.1, 2.2] },
   staffHome: [0, -1.1, 1.1, -2.2, 2.2, -0.55, 0.55],
 };

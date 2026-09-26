@@ -396,14 +396,14 @@ export function createScene(canvas, handlers) {
   }
   const headScreen = id => { const m = custs.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(KID_HEAD))) : null; };
   const staffScreen = id => { const m = staff.get(id); return m ? toScreen(m.g.localToWorld(tv.copy(BEAR_HEAD))) : null; };
-  // Mép trước của trạm (phía máy quay), để gắn nhãn cấp ngay dưới trạm.
-  const stationScreen = id => { const s = stations.get(id); return s ? toScreen(tv.set(s.base.x, TOP_BACK, s.base.z + 0.5)) : null; };
+  // Mép sau của trạm (sát tường), để gắn nhãn cấp phía trên máy, không che mặt gấu đứng trước máy.
+  const stationScreen = id => { const s = stations.get(id); return s ? toScreen(tv.set(s.base.x, TOP_BACK + 0.05, s.base.z - 0.62)) : null; };
   const stationTop = id => { const s = stations.get(id); return s ? toScreen(tv.set(s.base.x, TOP_BACK + 0.75, s.base.z)) : null; };
 
   /* ---------- khung hình ---------- */
-  // Nhìn chếch từ sau quầy pha, gần như từ trên xuống: thu trọn hai quầy, khách và biển hiệu,
+  // Nhìn chếch từ phía khách, gần như từ trên xuống: thu trọn khách, hai quầy, gấu và biển hiệu,
   // chừa chỗ cho thanh trên và thanh dưới, rồi căn giữa theo chiều dọc.
-  const FIT = [[-2.85, 0.95, 2.6], [2.85, 0.95, 2.6], [-2.6, 1.9, LAYOUT.custZ], [2.6, 1.9, LAYOUT.custZ], [-1.3, 3.05, -4.84], [1.7, 3.05, -4.84]].map(a => new THREE.Vector3(...a));
+  const FIT = [[-2.85, 0.95, LAYOUT.backZ - 0.6], [2.85, 0.95, LAYOUT.backZ - 0.6], [-2.7, 0, LAYOUT.custZ + 0.35], [2.7, 0, LAYOUT.custZ + 0.35], [-2.7, 1.35, LAYOUT.custZ], [2.7, 1.35, LAYOUT.custZ], [-1.3, 3.05, -4.84], [1.7, 3.05, -4.84]].map(a => new THREE.Vector3(...a));
   let TOP_LIM = 0.7, BOT_LIM = -0.68;
   function placeCam(t, dir, d) { camera.position.copy(t).addScaledVector(dir, d); camera.lookAt(t); camera.updateMatrixWorld(); }
   function extent() {
@@ -425,7 +425,7 @@ export function createScene(canvas, handlers) {
     TOP_LIM = 1 - 2 * 118 / H;
     BOT_LIM = -1 + 2 * 128 / H;
     const el = camera.aspect < 0.8 ? 1.0 : 0.9;
-    const dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el)), t = new THREE.Vector3(0, 0.9, 0.2);
+    const dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el)), t = new THREE.Vector3(0, 0.9, -0.6);
     for (let k = 0; k < 4; k++) {
       const d = fitDist(t, dir);
       placeCam(t, dir, d);
@@ -541,10 +541,6 @@ function buildRoom(t) {
   box(24, 1.1, 0.22, trim, 0, 0.55, -4.98, g);
   const glassM = mat(0xbfe3f2, { roughness: 0.2 });
   [-3.2, 2.1].forEach(x => { box(1.5, 1.2, 0.05, glassM, x - 0.8, 2.0, -4.88, g); box(1.65, 0.1, 0.1, trim, x - 0.8, 1.38, -4.86, g); });
-  const [dx, dz] = LAYOUT.door;
-  box(1.2, 2.3, 0.08, mat(0x6b4630), dx, 1.15, -4.86, g);
-  sph(0.05, mat(0xf0c05a), dx - 0.45, 1.1, -4.8, g, 6, 4);
-  void dz;
 
   const tableM = mat(0xe8d5b9), legM = mat(0x5a3d2b), chairM = mat(t.chair);
   const table = (x, z) => {
@@ -590,7 +586,10 @@ function buildCounters(scene) {
   const fz = LAYOUT.frontZ, bz = LAYOUT.backZ;
   box(5.9, 0.92, 0.9, wood, 0, 0.46, fz, scene);
   box(6.1, 0.06, 1.0, top, 0, TOP_FRONT, fz, scene);
-  for (let x = -2.6; x <= 2.6; x += 0.52) box(0.22, 0.7, 0.03, accent, x, 0.45, fz - 0.46, scene);
+  // mặt quầy đưa ly quay về phía khách (và máy quay): sọc hồng, viền vỏ sò
+  for (let x = -2.6; x <= 2.6; x += 0.52) box(0.22, 0.62, 0.03, accent, x, 0.42, fz + 0.46, scene);
+  const scallopF = new THREE.CircleGeometry(0.15, 16, Math.PI, Math.PI);
+  for (let i = 0; i < 20; i++) mesh(scallopF, mat(i % 2 ? 0xfff1e0 : 0xff9fb2), -2.85 + i * 0.3, 0.88, fz + 0.463, scene).castShadow = false;
   box(5.9, 0.9, 1.1, wood, 0, 0.45, bz, scene);
   box(6.1, 0.06, 1.2, top, 0, TOP_BACK - 0.02, bz, scene);
   // viền vỏ sò hồng kem trên mặt quầy sau quay về phía máy quay

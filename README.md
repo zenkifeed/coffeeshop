@@ -36,7 +36,8 @@ Bong bóng không chặn thao tác, bong bóng nào cũng có nút "Bỏ qua hư
 
 ### Quán chạy thế nào
 
-- Khách vào cửa, đứng chờ ở quầy (lúc đầu 3 chỗ, tối đa 5) và gọi ngẫu nhiên một món trong các trạm đã mở. Quầy kín chỗ thì khách mới chưa vào.
+- Góc nhìn từ phía khách: khách đứng dưới cùng, quầy đưa ly ở giữa, các bạn gấu đứng sau quầy hướng mặt ra khách, trạm pha xếp trên quầy sát tường với mặt máy quay ra phía khách. Nhãn cấp nằm phía trên mỗi máy.
+- Khách vào từ mép dưới màn hình, đứng chờ ở quầy (lúc đầu 3 chỗ, tối đa 5) và gọi ngẫu nhiên một món trong các trạm đã mở. Quầy kín chỗ thì khách mới chưa vào.
 - Bạn gấu rảnh tay nhận đơn của khách chờ lâu nhất, đi tới trạm của món đó, pha xong thì bưng ra quầy. Khách nhận ly thì trả tiền (số tiền bay lên từ đầu khách) và thả tim.
 - Mỗi trạm lúc đầu chỉ cho một bạn gấu pha cùng lúc; cấp 25 thêm chỗ thứ hai, cấp 75 thêm chỗ thứ ba.
 - Thanh trên hiện tiền trong két và thu nhập ước tính mỗi giây.
@@ -54,7 +55,7 @@ Nhân viên là bốn bạn gấu, vào ca theo thứ tự:
 
 Mọi bạn gấu mặc tạp dề màu của chi nhánh, có túi hình tim. Sang chi nhánh mới thì Gấu Nâu đi cùng, các bạn khác thuê lại.
 
-- **Động tác:** đi lạch bạch, hai tay lắc lắc khi pha, bưng ly bằng hai tay, nhún người khi đưa ly cho khách. Rảnh tay thì quay ra nhìn người chơi, thỉnh thoảng vẫy tay, vươn vai ngáp hay ngó quanh; tai giật nhẹ.
+- **Động tác:** đi lạch bạch, hai tay lắc lắc khi pha, bưng ly bằng hai tay, nhún người khi đưa ly cho khách. Rảnh tay thì quay mặt ra phía khách, ngẩng lên nhìn, thỉnh thoảng vẫy tay, vươn vai ngáp hay ngó quanh; tai giật nhẹ. Khách vừa tới quầy thì một bạn gấu đang rảnh vẫy tay chào.
 - **Biểu cảm:** chớp mắt, mắt hơi híp khi tập trung pha, cười híp mắt khi đưa ly hay ăn mừng, nhắm mắt há miệng khi ngáp.
 - **Ăn mừng:** gấu mới vào ca thì xoay một vòng; trạm nào qua mốc cấp hay vừa sang chi nhánh mới thì cả đội giơ tay nhảy lên.
 - **Chạm vào gấu** thì gấu vẫy chào, bắn tim nhỏ. Chạm vào khách thì khách vẫy lại.
