@@ -47,6 +47,15 @@ Nút bánh răng ở góc trên: bật tắt nhạc nền, âm thanh hiệu ứn
 
 Game tự lưu trong trình duyệt, không cần tài khoản. Muốn giữ tiến trình khi đổi máy hay xoá dữ liệu trình duyệt thì vào **Cài đặt › Đăng nhập bằng Discord**: tiến trình được lưu lên mây và tự tải về khi đăng nhập ở máy khác. Game chỉ đọc tên và ảnh đại diện Discord của bạn.
 
+### Thêm vào màn hình chính
+
+Chơi như một app, có icon Gấu Trắng riêng và mở toàn màn hình:
+
+- **iPhone, iPad (Safari):** mở game, bấm nút **Chia sẻ** rồi chọn **Thêm vào MH chính**.
+- **Android (Chrome):** mở game, bấm menu **⋮** rồi chọn **Cài đặt ứng dụng** (hoặc **Thêm vào màn hình chính**).
+
+Trên iPhone, app ở màn hình chính lưu dữ liệu riêng, tách khỏi Safari. Muốn chơi tiếp tiến trình đang có trong Safari thì đăng nhập Discord ở cả hai nơi.
+
 ## Dành cho người phát triển
 
 Cần [Node.js](https://nodejs.org) 20.11 trở lên.

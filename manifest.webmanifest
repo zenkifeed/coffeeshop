@@ -1,0 +1,18 @@
+{
+  "name": "Quán Cà Phê Nhỏ",
+  "short_name": "Quán Cà Phê",
+  "description": "Game quản lý chuỗi quán cà phê dễ thương cùng các bạn gấu.",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3e3cc",
+  "theme_color": "#f3e3cc",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

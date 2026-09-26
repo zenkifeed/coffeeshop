@@ -295,6 +295,21 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   ok(isFresh(L.freshState()) && !isFresh({ ...L.freshState(), life: { served: 3, earned: 1 } }), 'bản còn trắng thì lấy bản trên mây không cần hỏi');
 }
 
+console.log('Icon và manifest (thêm vào màn hình chính)');
+{
+  const { readFileSync, existsSync } = await import('node:fs');
+  const root = new URL('../', import.meta.url);
+  const man = JSON.parse(readFileSync(new URL('manifest.webmanifest', root), 'utf8'));
+  ok(man.display === 'standalone' && man.start_url === '/' && man.short_name.length <= 12, 'manifest: mở toàn màn hình, tên ngắn vừa nhãn icon');
+  const pngSize = f => { const b = readFileSync(new URL(f, root)); return b.readUInt32BE(16) + 'x' + b.readUInt32BE(20); };
+  man.icons.filter(i => i.type === 'image/png').forEach(i => ok(existsSync(new URL(i.src, root)) && pngSize(i.src) === i.sizes, `icon ${i.src} có thật và đúng cỡ ${i.sizes}`));
+  ok(man.icons.some(i => i.purpose === 'maskable') && man.icons.some(i => i.sizes === '512x512'), 'có icon 512 và bản maskable cho Android');
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  const apple = html.match(/rel="apple-touch-icon" href="([^"]+)"/);
+  ok(apple && pngSize(apple[1]) === '180x180', 'apple-touch-icon cho iPhone là PNG 180x180');
+  ok(html.includes('rel="manifest" href="manifest.webmanifest"') && html.includes('apple-mobile-web-app-title'), 'index.html gắn manifest và tên hiện trên màn hình chính iPhone');
+}
+
 console.log('Mô phỏng cân bằng ba quán (người chơi giả mua theo nhiệm vụ và lợi tức)');
 {
   const BAND = [[10, 35], [10, 40], [10, 45]];
