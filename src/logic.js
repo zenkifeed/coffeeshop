@@ -264,7 +264,7 @@ export function step(S, W, dt, rng = Math.random) {
       if (vip) W.vipT = between(CFG.vip.every, rng) / (1 + vf(S, 'vip'));
       const slot = vip ? -1 : rnd(free, rng);
       const [tx, tz] = vip ? L.vipSpot : [slots[slot], L.custZ];
-      const c = { id: ++W.uid, slot, x, z, tx, tz, face: 0, moving: true, state: 'in', st, who: 0, t: 0, seed: rng(), vip };
+      const c = { id: ++W.uid, slot, x, z, tx, tz, face: 0, moving: true, state: 'in', st, who: 0, t: 0, seed: rng(), vip, ordered: vip };
       W.cust.push(c);
       ev.push({ k: 'spawn', c });
       W.spawnT = D.gap * (0.7 + rng() * 0.6);
@@ -290,13 +290,26 @@ export function step(S, W, dt, rng = Math.random) {
         W.spots[c.st][spot] = s.id;
         c.who = s.id;
         s.job = { c: c.id, st: c.st, spot };
-        s.state = 'go';
-        s.tx = L.stationX[stIndex(S, c.st)] + L.spotDX[spot];
-        s.tz = L.workZ;
+        // bước 1: ra quầy chỗ khách đứng để chào và ghi món (bàn VIP nằm ngoài dải quầy thì tới mép gần nhất)
+        s.state = 'meet';
+        s.tx = Math.max(L.stationX[0], Math.min(L.stationX[L.stationX.length - 1], c.tx));
+        s.tz = L.serveZ;
         break;
       }
     }
-    if (s.state === 'go' && walk(s, D.walk, dt)) {
+    if (s.state === 'meet' && walk(s, D.walk, dt)) {
+      // tới nơi: quay mặt ra khách, đứng ghi món một nhịp
+      s.state = 'take'; s.t = 0; s.face = FACE_OUT;
+      ev.push({ k: 'greet', s, c: W.cust.find(x => x.id === s.job.c) });
+    } else if (s.state === 'take' && (s.t += dt) >= CFG.take) {
+      // ghi xong: từ giờ khách mới "gọi món" (bong bóng món hiện ra), gấu vào máy pha
+      const c = W.cust.find(x => x.id === s.job.c);
+      if (c) c.ordered = true;
+      s.state = 'go';
+      s.tx = L.stationX[stIndex(S, s.job.st)] + L.spotDX[s.job.spot];
+      s.tz = L.workZ;
+      ev.push({ k: 'taken', s, c, st: s.job.st });
+    } else if (s.state === 'go' && walk(s, D.walk, dt)) {
       s.state = 'brew'; s.t = 0; s.dur = prepOf(S, s.job.st, D); s.face = FACE_IN;
       ev.push({ k: 'brew', s, st: s.job.st });
     } else if (s.state === 'brew' && (s.t += dt) >= s.dur) {
@@ -359,13 +372,17 @@ export function rate(S, D = derived(S)) {
   const sh = shopOf(S), open = sh.stations.filter(s => lvOf(S, s.id) > 0), k = open.length;
   if (!k) return 0;
   const slots = LAYOUT.slotsX[D.queue], dz = LAYOUT.workZ - LAYOUT.serveZ;
+  // đoạn đi giữa hai khách liên tiếp (kết thúc ly trước ở chỗ khách cũ, sang chỗ khách mới để ghi món)
+  let md = 0;
+  for (const a of slots) for (const b of slots) md += Math.abs(a - b);
+  md /= slots.length * slots.length;
   let P = 0, C = 0, cap = Infinity;
   open.forEach(s => {
     const sx = LAYOUT.stationX[sh.stations.indexOf(s)];
     const dx = slots.reduce((a, x) => a + Math.abs(x - sx), 0) / slots.length;
     const prep = s.time / D.prep;
     P += profitOf(S, s.id, undefined, D) / k;
-    C += (2 * Math.hypot(dx, dz) / D.walk + prep) / k;
+    C += ((md + 2 * Math.hypot(dx, dz)) / D.walk + CFG.take + prep) / k;
     cap = Math.min(cap, capAt(lvOf(S, s.id)) / prep * k);
   });
   // mỗi chỗ đứng bị giữ từ lúc khách bước vào cửa tới lúc cầm ly đi: đi vào + chờ pha + chờ đi ra

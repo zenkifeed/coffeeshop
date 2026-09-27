@@ -152,16 +152,18 @@ function bubbles() {
     alive.add(c.id);
     let el = bubbleEls.get(c.id);
     if (!el) {
-      const d = L.stDef(S, c.st);
       el = document.createElement('div');
-      el.className = 'bub' + (c.vip ? ' vip' : '');
-      el.innerHTML = drinkIcon(d.c, d.ice);
-      if (c.vip) {
-        el.insertAdjacentHTML('beforeend', '<b class="tapme">Chạm!</b><span class="vt"><i></i></span>');
-        el.addEventListener('pointerdown', () => { if (vipTappable(c)) openVipGame(c.id); });
-      }
+      if (c.vip) el.addEventListener('pointerdown', () => { if (vipTappable(c)) openVipGame(c.id); });
       $('bubbles').appendChild(el);
       bubbleEls.set(c.id, el);
+    }
+    // nội dung đổi một lần khi gấu ghi món xong: từ "..." đang gọi sang icon món
+    if (el._ord !== !!c.ordered) {
+      el._ord = !!c.ordered;
+      const d = L.stDef(S, c.st);
+      el.className = 'bub' + (c.vip ? ' vip' : '') + (c.ordered ? '' : ' ask');
+      el.innerHTML = c.ordered ? drinkIcon(d.c, d.ice) : '<i class="dots"><b></b><b></b><b></b></i>';
+      if (c.vip) el.insertAdjacentHTML('beforeend', '<b class="tapme">Chạm!</b><span class="vt"><i></i></span>');
     }
     el.classList.toggle('taken', !!c.who);
     if (c.vip) {
@@ -210,6 +212,8 @@ function handle(ev) {
     }
     else if (e.k === 'boostEnd') { Music.setTempo(1); toast('Hết tăng tốc. Nghỉ một lúc là bấm lại được'); }
     else if (e.k === 'boostReady') { sfx.ding(4); retrigger($('boostBtn'), 'pop'); if (!modalOpen()) toast(`${ICON.bolt} Tăng tốc đã sẵn sàng!`); }
+    else if (e.k === 'greet') { if (e.c) { scene.emote({ staff: e.s.id }, 'wave'); if (sfxOk('greet')) sfx.boop(); } }
+    else if (e.k === 'taken') { if (e.c) { scene.emote({ cust: e.c.id }, 'love'); if (sfxOk('taken')) sfx.tick(); } }
     else if (e.k === 'order') {
       // khách vừa tới quầy: một bạn gấu đang rảnh vẫy tay chào
       const idle = W.staff.filter(s => s.state === 'idle');
@@ -937,7 +941,7 @@ function welcomeDlg(next) {
   const old = R.legacy;
   modal(`<div class="wel-hero">${drinkIcon('#8a5a3b', true)}</div><h2>${old ? 'Quán đã đổi cách chơi!' : 'Chào mừng tới quán!'}</h2>
     ${old ? `<p class="muted small">Giờ bạn là chủ chuỗi quán: các bạn gấu tự pha, bạn lo nâng cấp và mở rộng.${old.shopName ? ` Tên quán <b>${esc(old.shopName)}</b> vẫn giữ nguyên.` : ''}</p>` : ''}
-    <ol class="how wel"><li><b>Các bạn gấu tự pha và bán</b>: khách tới, gấu làm món, tiền tự vào két. Chạm vào gấu để chào nhé!</li><li><b>Chạm vào trạm pha</b> để nâng cấp. Tới cấp 10, 25, 50, 75, 100 thì tiền mỗi ly gấp đôi.</li><li><b>Làm nhiệm vụ</b> để chuyển sang chi nhánh mới, lớn hơn.</li></ol>`,
+    <ol class="how wel"><li><b>Các bạn gấu tự bán hàng</b>: khách tới, gấu ra chào và ghi món, pha xong mang ra tận tay, tiền tự vào két. Chạm vào gấu để chào nhé!</li><li><b>Chạm vào trạm pha</b> để nâng cấp. Tới cấp 10, 25, 50, 75, 100 thì tiền mỗi ly gấp đôi.</li><li><b>Làm nhiệm vụ</b> để chuyển sang chi nhánh mới, lớn hơn.</li></ol>`,
   [['Chỉ mình cách chơi', () => { S.ftue.welcomed = true; L.checkTuts(S); save(); next(); }, 1],
     ['Bỏ qua, mình tự chơi', () => { Object.assign(S.ftue, { welcomed: true, skip: true }); L.checkTuts(S); save(); next(); }]], 'welcome');
 }

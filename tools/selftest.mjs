@@ -117,6 +117,25 @@ console.log('Mô phỏng khách và nhân viên');
   ok(S.served >= served && S.earned >= paid, 'số ly và tiền kiếm được ghi vào quán');
 }
 
+console.log('Gấu ra chào và ghi món trước khi pha');
+{
+  const S = L.freshState(), rng = seeded(8);
+  S.money = 1e9;
+  const W = L.newWorld(S);
+  let greeted = 0, taken = 0, wrongBubble = 0, seq = [], balanceOk = true;
+  for (let t = 0; t < 180; t += 0.1) {
+    for (const e of L.step(S, W, 0.1, rng)) {
+      if (e.k === 'greet') { greeted++; if (e.c && e.c.ordered) wrongBubble++; }
+      if (e.k === 'taken') { taken++; if (!e.c || !e.c.ordered) wrongBubble++; seq.push('t'); }
+      if (e.k === 'brew') seq.push('b');
+    }
+  }
+  let credit = 0;
+  for (const x of seq) { if (x === 't') credit++; else if (--credit < 0) balanceOk = false; }
+  ok(greeted > 0 && taken > 0 && wrongBubble === 0, 'gấu ra chào rồi mới ghi món; trước lúc đó khách chưa hiện món');
+  ok(balanceOk, 'gấu chỉ bắt đầu pha sau khi đã ghi món của khách');
+}
+
 console.log('Ước lượng thu nhập so với mô phỏng');
 {
   const measure = S => {

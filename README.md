@@ -1,6 +1,6 @@
 # Quán Cà Phê Nhỏ
 
-Game quản lý chuỗi quán cà phê 3D phong cách dễ thương, chơi ngay trên trình duyệt. Khách tự tới, các bạn gấu nhân viên tự pha và bán, tiền tự vào két. Việc của bạn là nâng cấp máy pha, mở thêm món, thuê thêm gấu và mở rộng chuỗi năm chi nhánh, từ quán vỉa hè đầu hẻm tới nhà gỗ trên đồi thông Đà Lạt. Tắt game thì quán vẫn bán, lần sau quay lại có tiền chờ sẵn.
+Game quản lý chuỗi quán cà phê 3D phong cách dễ thương, chơi ngay trên trình duyệt. Khách tự tới, các bạn gấu nhân viên ra chào ghi món, tự pha rồi mang ra tận tay, tiền tự vào két. Việc của bạn là nâng cấp máy pha, mở thêm món, thuê thêm gấu và mở rộng chuỗi năm chi nhánh, từ quán vỉa hè đầu hẻm tới nhà gỗ trên đồi thông Đà Lạt. Tắt game thì quán vẫn bán, lần sau quay lại có tiền chờ sẵn.
 
 - **Chơi ngay:** https://happycoffeeshop.vercel.app
 - **Mã nguồn:** https://github.com/zenkifeed/coffeeshop
