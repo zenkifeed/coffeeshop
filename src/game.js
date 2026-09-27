@@ -836,11 +836,16 @@ async function cloudSync(next = () => {}) {
   if (!Cloud.user) return next();
   const rec = await Cloud.pull();
   if (!rec) { toast('Chưa kết nối được máy chủ lưu, tạm lưu trên máy', true); return next(); }
-  const cloud = L.migrate(rec.data);   // bản trên mây lưu từ trước khi đổi thang tiền
-  const keepLocal = async () => { Cloud.synced = true; if (await Cloud.push(S, true)) toast('Đã lưu tiến trình lên Discord'); next(); };
-  const takeCloud = () => { R.tookCloud = true; Cloud.synced = true; Cloud.lastAt = rec.at; applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
+  // hydrate cả bản trên mây: bản lưu từ phiên bản game cũ được điền trường mới y như bản trên máy,
+  // để hai bản không bị coi là khác nhau chỉ vì game vừa cập nhật thêm trường
+  const cloud = rec.data ? hydrate(rec.data) : null;
+  const keepLocal = async quiet => { Cloud.synced = true; if (await Cloud.push(S, true) && !quiet) toast('Đã lưu tiến trình lên Discord'); next(); };
+  const takeCloud = () => { R.tookCloud = true; Cloud.synced = true; Cloud.lastAt = rec.at; Cloud.mark(rec.at); applyState(cloud, 'Đã tải tiến trình từ Discord'); Cloud.lastJson = JSON.stringify({ data: S }); offlineDlg(cloud.at, next); };
   if (!cloud) return keepLocal();
-  if (sameProgress(cloud, S)) { Cloud.synced = true; Cloud.lastAt = rec.at; return next(); }
+  // cùng tiến trình, chỉ lệch tiền lẻ đang đếm: lấy số tiền lớn hơn rồi vào thẳng
+  if (sameProgress(cloud, S)) { if (cloud.money > S.money) S.money = cloud.money; Cloud.synced = true; Cloud.lastAt = rec.at; return next(); }
+  // bản trên mây do chính máy này đẩy lần cuối: bản trên máy chỉ mới hơn vài giây chơi, giữ bản máy, khỏi hỏi
+  if (Cloud.wrote(rec.at)) return keepLocal(true);
   if (isFresh(S)) return takeCloud();
   modal(`<h2>Chọn tiến trình để chơi tiếp</h2><p class="muted small">Tiến trình trên máy này khác với bản đã lưu trên Discord.</p>
     <div class="pick"><small>Trên Discord</small><div>${saveLine(cloud, rec.at)}</div></div>

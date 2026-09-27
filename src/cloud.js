@@ -16,6 +16,13 @@ async function call(path, opts = {}) {
   }
 }
 
+// Dấu mốc "bản trên mây lần cuối do máy này ghi": nhớ mốc at của lần đẩy thành công gần nhất.
+// Lúc vào game, mốc trên mây trùng mốc đã nhớ nghĩa là bản mây chỉ là bản cũ của chính máy này
+// (bản trên máy luôn mới hơn vài giây chơi) — giữ bản máy, không hỏi. Khác mốc mới là máy khác đã ghi đè.
+const AT_KEY = 'cafe3d_cloudat';
+const readAt = () => { try { return +globalThis.localStorage.getItem(AT_KEY) || 0; } catch (e) { return 0; } };
+const writeAt = at => { try { globalThis.localStorage.setItem(AT_KEY, String(+at || 0)); } catch (e) { /* máy chặn lưu thì thôi */ } };
+
 export const Cloud = {
   user: null,        // { id, name, avatar } khi đã đăng nhập
   online: false,     // gọi được máy chủ không (phân biệt "chưa đăng nhập" với "mất mạng")
@@ -33,8 +40,13 @@ export const Cloud = {
   login() { location.href = '/api/auth/login'; },
   async logout() {
     await call('/api/auth/logout', { method: 'POST' });
+    writeAt(0);   // quên dấu mốc để tài khoản khác đăng nhập không bị nhận nhầm
     Object.assign(this, { user: null, lastAt: 0, lastJson: '', synced: false });
   },
+  // Bản trên mây có mốc at này là do máy này đẩy lần cuối?
+  wrote(at) { return !!at && readAt() === +at; },
+  // Ghi nhận thủ công (sau khi tải bản trên mây về: bản máy giờ chính là bản mây đó).
+  mark(at) { writeAt(at); },
   // { data, at } (data null nếu chưa có bản nào), hoặc null nếu không gọi được.
   async pull() {
     if (!this.user) return null;
@@ -49,14 +61,16 @@ export const Cloud = {
     this.busy = true;
     const r = await call('/api/save', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: js, keepalive: js.length < 60000 });
     this.busy = false;
-    if (r && r.at) { this.lastAt = r.at; this.lastJson = js; return true; }
+    if (r && r.at) { this.lastAt = r.at; this.lastJson = js; writeAt(r.at); return true; }
     return false;
   },
 };
 
-// Hai bản có cùng tiến trình không (bỏ qua mốc thời gian lưu).
+// Hai bản có cùng tiến trình không: bỏ qua mốc lưu và các trường "trôi" từng giây khi quán đang chạy
+// (tiền đang đếm, đồng hồ tăng tốc, cờ hướng dẫn, cờ đã-xem). Chỉ lệch mấy thứ đó thì không phải xung đột;
+// khác chi nhánh, cấp trạm, nhiệm vụ, số khách hay kim cương mới đáng hỏi người chơi.
 export function sameProgress(a, b) {
-  const strip = d => JSON.stringify({ ...d, at: 0 });
+  const strip = d => JSON.stringify({ ...d, at: 0, money: 0, earned: 0, boost: 0, ftue: 0, seen: 0, life: d.life ? d.life.served : 0 });
   return !!a && !!b && strip(a) === strip(b);
 }
 // Bản trên máy còn trắng (chưa bán ly nào, chưa nhận thưởng): lấy bản trên mây không cần hỏi.

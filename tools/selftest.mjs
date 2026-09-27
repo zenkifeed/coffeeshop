@@ -423,7 +423,7 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   delete process.env.VERCEL;
   process.chdir(cwd);
 
-  const { sameProgress, isFresh, authStep } = await import('../src/cloud.js');
+  const { Cloud, sameProgress, isFresh, authStep } = await import('../src/cloud.js');
   const on = { online: true, user: null, login: null, tried: false };
   ok(authStep(null, on) === 'popup' && authStep(undefined, on) === 'popup', 'lần đầu vào game (chưa chọn) thì hỏi Discord hay khách');
   ok(authStep('guest', on) === 'continue' && authStep('guest', { ...on, online: false }) === 'continue', 'đã chọn khách thì vào thẳng, không hỏi lại');
@@ -434,7 +434,19 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   ok(authStep('discord', { ...on, login: 'fail' }) === 'popup' && authStep('discord', { ...on, login: 'cancel' }) === 'popup', 'vừa đăng nhập thất bại hoặc huỷ thì hỏi lại để có thể chọn khách');
   ok(authStep('discord', { ...on, online: false }) === 'offline', 'mất mạng thì tạm chơi trên máy, không chuyển sang Discord');
   const a = L.freshState(), b = { ...L.freshState(), at: 123 };
-  ok(sameProgress(a, b) && !sameProgress(a, { ...b, money: 1 }), 'so tiến trình bỏ qua mốc thời gian lưu');
+  ok(sameProgress(a, b), 'so tiến trình bỏ qua mốc thời gian lưu');
+  ok(sameProgress(a, { ...b, money: 999, earned: 5, boost: { left: 9, cd: 0 }, seen: { boost: true } }), 'tiền đang đếm và đồng hồ đang chạy không bị coi là xung đột');
+  ok(!sameProgress(a, { ...b, shop: 1 }) && !sameProgress(a, { ...b, served: 7 }) && !sameProgress(a, { ...b, gems: 3 }), 'khác chi nhánh, số khách hay kim cương mới là khác tiến trình');
+  // dấu mốc "bản trên mây do máy này ghi": nhớ sau khi đẩy, quên khi đăng xuất
+  {
+    const store = new Map();
+    globalThis.localStorage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+    Cloud.mark(1234);
+    ok(Cloud.wrote(1234) && !Cloud.wrote(5678) && !Cloud.wrote(0), 'nhớ đúng mốc lần đẩy cuối của máy này');
+    await Cloud.logout();
+    ok(!Cloud.wrote(1234), 'đăng xuất thì quên mốc, tài khoản khác không bị nhận nhầm');
+    delete globalThis.localStorage;
+  }
   ok(isFresh(L.freshState()) && !isFresh({ ...L.freshState(), life: { served: 3, earned: 1 } }), 'bản còn trắng thì lấy bản trên mây không cần hỏi');
 }
 
