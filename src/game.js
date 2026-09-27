@@ -8,7 +8,7 @@ import { Music } from './music.js';
 import { opts, saveOpts, haptic } from './feel.js';
 import * as SV from './save.js';
 import { Coach } from './coach.js';
-import { Cloud, sameProgress, isFresh, authStep } from './cloud.js';
+import { Cloud, sameProgress, isFresh, dominates, authStep } from './cloud.js';
 import { $, esc, ICON, bearIcon, drinkIcon, starsHTML, toast, floatText, flash, punchEl, retrigger, centerOf, coinFly, domBurst, countUp, modal, modalOpen } from './ui.js';
 
 const fmt = L.fmt;
@@ -844,9 +844,12 @@ async function cloudSync(next = () => {}) {
   if (!cloud) return keepLocal();
   // cùng tiến trình, chỉ lệch tiền lẻ đang đếm: lấy số tiền lớn hơn rồi vào thẳng
   if (sameProgress(cloud, S)) { if (cloud.money > S.money) S.money = cloud.money; Cloud.synced = true; Cloud.lastAt = rec.at; return next(); }
-  // bản trên mây do chính máy này đẩy lần cuối: bản trên máy chỉ mới hơn vài giây chơi, giữ bản máy, khỏi hỏi
-  if (Cloud.wrote(rec.at)) return keepLocal(true);
-  if (isFresh(S)) return takeCloud();
+  // bản mây do chính máy này ghi lần cuối (mã máy hoặc mốc đẩy): bản máy chỉ mới hơn vài giây chơi
+  if (Cloud.own(rec)) return keepLocal(true);
+  // bản máy đã chứa trọn tiến trình của bản mây (bản mây là bản cũ cùng dòng): giữ bản máy, khỏi hỏi
+  if (dominates(S, cloud)) return keepLocal(true);
+  // bản mây đi trước bản máy cùng một dòng (vừa chơi tiếp ở máy khác): lấy bản mây luôn
+  if (isFresh(S) || dominates(cloud, S)) return takeCloud();
   modal(`<h2>Chọn tiến trình để chơi tiếp</h2><p class="muted small">Tiến trình trên máy này khác với bản đã lưu trên Discord.</p>
     <div class="pick"><small>Trên Discord</small><div>${saveLine(cloud, rec.at)}</div></div>
     <div class="pick"><small>Trên máy này</small><div>${saveLine(S, S.at)}</div></div>`,

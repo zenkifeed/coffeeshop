@@ -412,9 +412,9 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   const big = L.freshState(); big.pad = 'x'.repeat(120 * 1024);
   ok((await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: JSON.stringify({ data: big }) }))).status === 400, 'bản lưu quá lớn thì bị chặn');
   const mine = L.freshState(); mine.money = 777;
-  const put = await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: JSON.stringify({ data: mine }) }));
+  const put = await saveApi.PUT(req('/api/save', { ...auth, method: 'PUT', body: JSON.stringify({ data: mine, dev: 'may-thu-1' }) }));
   const back = await (await saveApi.GET(req('/api/save', auth))).json();
-  ok(put.status === 200 && back.data.money === 777 && back.at > 0, 'lưu rồi đọc lại đúng bản của mình');
+  ok(put.status === 200 && back.data.money === 777 && back.at > 0 && back.dev === 'may-thu-1', 'lưu rồi đọc lại đúng bản của mình, kèm mã máy đã ghi');
   const other = core.makeSession({ id: '99', name: 'Khác', avatar: '' });
   ok((await (await saveApi.GET(req('/api/save', { cookie: 'cs_sess=' + other }))).json()).data === null, 'người khác không thấy bản lưu của mình');
   ok(cookieVal(logout.POST(req('/api/auth/logout', { method: 'POST', ...auth })), 'cs_sess') === '', 'đăng xuất xoá cookie phiên');
@@ -423,7 +423,7 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
   delete process.env.VERCEL;
   process.chdir(cwd);
 
-  const { Cloud, sameProgress, isFresh, authStep } = await import('../src/cloud.js');
+  const { Cloud, sameProgress, isFresh, dominates, devId, authStep } = await import('../src/cloud.js');
   const on = { online: true, user: null, login: null, tried: false };
   ok(authStep(null, on) === 'popup' && authStep(undefined, on) === 'popup', 'lần đầu vào game (chưa chọn) thì hỏi Discord hay khách');
   ok(authStep('guest', on) === 'continue' && authStep('guest', { ...on, online: false }) === 'continue', 'đã chọn khách thì vào thẳng, không hỏi lại');
@@ -443,9 +443,27 @@ console.log('Đăng nhập Discord và lưu lên mây (máy chủ, Discord giả
     globalThis.localStorage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
     Cloud.mark(1234);
     ok(Cloud.wrote(1234) && !Cloud.wrote(5678) && !Cloud.wrote(0), 'nhớ đúng mốc lần đẩy cuối của máy này');
+    // mã máy: sinh một lần, bền qua các lần đọc; bản ghi mang mã của mình thì là của mình
+    const d1 = devId();
+    ok(d1 && d1 === devId(), 'mã máy sinh một lần và giữ nguyên');
+    ok(Cloud.own({ at: 9, dev: d1 }) && !Cloud.own({ at: 9, dev: 'may-khac' }) && !Cloud.own(null), 'nhận đúng bản mây do máy này ghi qua mã máy');
+    Cloud.mark(777);
+    ok(Cloud.own({ at: 777 }), 'bản ghi cũ chưa có mã máy vẫn nhận được qua mốc đẩy');
     await Cloud.logout();
-    ok(!Cloud.wrote(1234), 'đăng xuất thì quên mốc, tài khoản khác không bị nhận nhầm');
+    ok(!Cloud.wrote(1234) && !Cloud.own({ at: 9, dev: d1 }), 'đăng xuất thì quên mốc lẫn mã máy, tài khoản khác không bị nhận nhầm');
     delete globalThis.localStorage;
+  }
+  // so dòng dõi: bản đi trước chứa trọn bản đi sau; rẽ nhánh thì không bên nào trùm bên nào
+  {
+    const base = { ...L.freshState(), st: { den: 10, sua: 3 }, upg: { staff2: true }, claimed: { 0: true }, served: 50, life: { served: 50, earned: 1 } };
+    const ahead = { ...base, st: { den: 14, sua: 3 }, claimed: { 0: true, 1: true }, served: 80, life: { served: 80, earned: 2 }, money: 1, gems: 0 };
+    ok(dominates(ahead, base) && !dominates(base, ahead), 'bản chơi tiếp cùng dòng chứa trọn bản cũ (tiền và kim cương không tính)');
+    const moved = { ...L.freshState(1), life: { served: 200, earned: 9 } };
+    ok(dominates(moved, base) && !dominates(base, moved), 'đã sang chi nhánh sau thì trùm bản còn ở chi nhánh trước');
+    const forkA = { ...base, claimed: { 0: true, 1: true } };
+    const forkB = { ...base, served: 120, life: { served: 120, earned: 3 } };
+    ok(!dominates(forkA, forkB) && !dominates(forkB, forkA), 'hai bản rẽ nhánh thật sự thì không bên nào trùm bên nào (phải hỏi)');
+    ok(dominates(base, JSON.parse(JSON.stringify(base))), 'hai bản y hệt coi như cùng dòng');
   }
   ok(isFresh(L.freshState()) && !isFresh({ ...L.freshState(), life: { served: 3, earned: 1 } }), 'bản còn trắng thì lấy bản trên mây không cần hỏi');
 }

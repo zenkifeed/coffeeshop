@@ -1,5 +1,7 @@
 // Bản lưu trên mây của người chơi đã đăng nhập Discord.
-// GET → { data, at } (data = null nếu chưa có). PUT { data } → { at }. Chưa đăng nhập → 401.
+// GET → { data, at, dev } (data = null nếu chưa có). PUT { data, dev } → { at }. Chưa đăng nhập → 401.
+// dev: mã ngẫu nhiên của máy đã ghi (cloud.js sinh); lúc vào game, máy thấy bản mây mang mã của mình
+// thì biết đó chỉ là bản cũ của chính mình, khỏi hỏi "chọn tiến trình".
 import { json, readSession, store, storeReady, saveKey, validSave } from './_lib/core.js';
 
 function guard(req) {
@@ -27,7 +29,8 @@ export async function PUT(req) {
   let body = null;
   try { body = JSON.parse(text); } catch (e) { /* bỏ qua, báo lỗi bên dưới */ }
   if (!body || !validSave(body.data, text.length)) return json({ error: 'Bản lưu không hợp lệ' }, 400);
-  const rec = { data: body.data, at: Date.now() };
+  const dev = typeof body.dev === 'string' && /^[a-z0-9-]{1,40}$/i.test(body.dev) ? body.dev : '';
+  const rec = { data: body.data, at: Date.now(), ...(dev ? { dev } : {}) };
   try {
     await store.set(saveKey(u.id), rec);
     return json({ at: rec.at });
