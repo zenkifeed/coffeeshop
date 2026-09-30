@@ -201,15 +201,17 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
   const p0 = L.profitOf(S, 'den');
   ok(L.buyVault(S, 'profit') && L.buyVault(S, 'profit') && S.gems === 0, 'mua buff trừ đúng giá từng cấp');
   ok(Math.abs(L.profitOf(S, 'den') / p0 - (1 + 2 * VAULT.find(v => v.id === 'profit').per)) < 1e-9, 'buff "Công thức bí truyền" nhân tiền mỗi ly');
-  S.gems = 1e6; while (L.buyVault(S, 'offline'));
-  ok(L.vaultLv(S, 'offline') === VAULT.find(v => v.id === 'offline').max && L.vaultCost(S, 'offline') == null, 'buff dừng ở cấp tối đa');
-  ok(L.offlineCapH(S) === CFG.offlineMaxH && L.offlineSecs(S, 1e9) === CFG.offlineMaxH * 3600, `mua kịch "Két sắt lớn" thì két chứa đúng trần ${CFG.offlineMaxH} giờ`);
+  S.gems = 1e6; while (L.buyVault(S, 'boost'));
+  ok(L.vaultLv(S, 'boost') === VAULT.find(v => v.id === 'boost').max && L.vaultCost(S, 'boost') == null, 'buff dừng ở cấp tối đa');
+  // két tiền vắng mặt: cố định cho mọi người, không món Kho báu nào đổi được; bản lưu cũ có "Két sắt lớn" được hoàn kim cương
   {
-    const K = L.freshState(), per = VAULT.find(v => v.id === 'offline').per;
-    K.vault = { offline: 1 };
-    ok(L.offlineCapH(K) === CFG.offlineCapH + per, 'mỗi cấp "Két sắt lớn" nới két thêm đúng số giờ');
-    K.vault = { offline: 99 };   // bản lưu cũ (thời Két sắt lớn có 4 cấp) hay mọi nguồn cộng giờ khác
-    ok(L.offlineCapH(K) === CFG.offlineMaxH && L.offlineSecs(K, 30 * 3600) === CFG.offlineMaxH * 3600, `không nguồn nào vượt được trần ${CFG.offlineMaxH} giờ; vắng lâu hơn vẫn nhận đủ phần trong két`);
+    ok(!VAULT.some(v => v.id === 'offline'), 'Kho báu không còn món "Két sắt lớn"');
+    const K = L.freshState();
+    ok(L.offlineSecs(K, 30 * 3600) === CFG.offlineCapH * 3600 && L.offlineSecs(K, 3 * 3600) === 3 * 3600, `két chứa đúng ${CFG.offlineCapH} giờ; vắng lâu hơn vẫn nhận đủ phần trong két`);
+    K.vault = { offline: 3, profit: 2 }; K.gems = 1;
+    const back = L.refundRemovedVault(K);
+    ok(back === VAULT_COST[0] + VAULT_COST[1] + VAULT_COST[2] && K.gems === 1 + back && !('offline' in K.vault) && K.vault.profit === 2, 'bản lưu cũ có "Két sắt lớn": gỡ món và hoàn đủ kim cương, giữ nguyên món khác');
+    ok(L.refundRemovedVault(K) === 0 && L.offlineCapH(K) === CFG.offlineCapH, 'hoàn một lần là xong, két vẫn đúng sức chứa chung');
   }
   // tăng tốc
   const B = L.freshState();
@@ -524,8 +526,8 @@ console.log('Mô phỏng cân bằng cả chuỗi quán (người chơi giả mu
   });
   ok(run.length === SHOPS.length, 'chơi qua được cả chuỗi quán');
   // tiền vắng mặt (két đầy 8 giờ mỗi đêm) không được cho đi tắt: tổng phút chơi thật phải gần bằng người chơi liên tục
-  const cont = run.reduce((a, r) => a + r.t, 0) / 60, sl = playSleeper(20, CFG.offlineMaxH);
-  console.log(`  Chơi 20 phút/ngày, ngủ ${CFG.offlineMaxH} giờ: xong sau ${sl.days} ngày, ${(sl.played / 60).toFixed(0)} phút chơi thật (liên tục: ${cont.toFixed(0)} phút)`);
+  const cont = run.reduce((a, r) => a + r.t, 0) / 60, sl = playSleeper(20, CFG.offlineCapH);
+  console.log(`  Chơi 20 phút/ngày, ngủ ${CFG.offlineCapH} giờ: xong sau ${sl.days} ngày, ${(sl.played / 60).toFixed(0)} phút chơi thật (liên tục: ${cont.toFixed(0)} phút)`);
   ok(sl.ok && sl.played / 60 >= cont * 0.85, 'ngủ dậy nhận đầy két cũng không đi tắt được chuỗi quán (nhiệm vụ đếm khách vẫn giữ nhịp)');
 }
 

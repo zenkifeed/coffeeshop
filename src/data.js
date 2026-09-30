@@ -10,8 +10,7 @@ export const CFG = {
   take: 0.9,                 // giây gấu đứng ở quầy chào và ghi món của khách trước khi đi pha
   queue: 3,                  // số khách đứng chờ ở quầy lúc đầu
   staff: 1,                  // số pha chế lúc đầu
-  offlineCapH: 2,            // tiền lúc vắng mặt: két chứa 2 giờ lúc đầu, Kho báu "Két sắt lớn" nới thêm
-  offlineMaxH: 8,            // trần cứng của két, mọi nguồn cộng giờ đều bị chặn ở đây (nâng trần = hướng mở rộng sau này)
+  offlineCapH: 8,            // két tiền vắng mặt chứa tối đa 8 giờ, như nhau với mọi người; đầy thì ngừng tích
   offlineMin: 60,            // vắng dưới 60 giây thì không hiện bảng tiền vắng mặt
   backupEvery: 300,          // giây chơi giữa hai bản dự phòng
   // kim cương: tiền giữ qua mọi chi nhánh, dùng ở Kho báu
@@ -45,7 +44,6 @@ export const VAULT = [
   { id: 'walk',    n: 'Giày êm cho gấu',     d: 'Gấu đi nhanh hơn 10% mỗi cấp',                   max: 5, per: 0.1 },
   { id: 'prep',    n: 'Tay nghề lão luyện',  d: 'Pha nhanh hơn 10% mỗi cấp',                      max: 5, per: 0.1 },
   { id: 'spawn',   n: 'Khách quen',          d: 'Khách tới đông hơn 10% mỗi cấp',                 max: 5, per: 0.1 },
-  { id: 'offline', n: 'Két sắt lớn',         d: 'Két tiền vắng mặt chứa thêm 2 giờ mỗi cấp',      max: 3, per: 2 },
   { id: 'boost',   n: 'Cà phê đậm đặc',      d: 'Tăng tốc kéo dài thêm 1 phút mỗi cấp',           max: 3, per: 60 },
   { id: 'vip',     n: 'Thẻ thành viên',      d: 'Khách VIP ghé thường hơn 25% mỗi cấp',           max: 3, per: 0.25 },
   { id: 'start',   n: 'Vốn khởi nghiệp',     d: 'Chi nhánh mới bắt đầu với thêm 50% vốn mỗi cấp', max: 3, per: 0.5 },
@@ -171,11 +169,11 @@ export const SHOPS = [
       { k: 'unlock', st: 'caramel',        r: 3e7 },
       { k: 'level', st: 'sinhto', v: 25,   r: 1e8 },
       { k: 'upgn', v: 7,                   r: 1.5e8 },
-      { k: 'served', v: 380,               r: 2e8 },
+      { k: 'served', v: 350,               r: 2e8 },
       { k: 'level', st: 'caramel', v: 10,  r: 2.5e8 },
-      { k: 'served', v: 520,               r: 3.5e8 },
+      { k: 'served', v: 490,               r: 3.5e8 },
       { k: 'level', st: 'latte', v: 50,    r: 4e8 },
-      { k: 'served', v: 660,               r: 6e8 },
+      { k: 'served', v: 640,               r: 6e8 },
       { k: 'upgn', v: 10,                  r: 7e8 },
       { k: 'served', v: 800,               r: 1.2e9 },
     ],

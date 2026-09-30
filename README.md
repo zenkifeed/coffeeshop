@@ -45,7 +45,7 @@ Mỗi quán có một danh sách nhiệm vụ (nâng máy, mở món, thuê gấ
 
 ### Kim cương và Kho báu
 
-Kim cương có được khi máy pha qua mốc cấp, khi nhận thưởng nhiệm vụ, khi phục vụ khách VIP và khi chuyển chi nhánh. Kim cương dùng ở **Kho báu** để mua buff vĩnh viễn cho cả chuỗi quán: bán được giá hơn, gấu đi và pha nhanh hơn, khách đông hơn, tiền lúc vắng mặt tính lâu hơn, tăng tốc lâu hơn, vốn chi nhánh mới nhiều hơn… Kim cương và Kho báu đi theo bạn sang mọi chi nhánh.
+Kim cương có được khi máy pha qua mốc cấp, khi nhận thưởng nhiệm vụ, khi phục vụ khách VIP và khi chuyển chi nhánh. Kim cương dùng ở **Kho báu** để mua buff vĩnh viễn cho cả chuỗi quán: bán được giá hơn, gấu đi và pha nhanh hơn, khách đông hơn, tăng tốc lâu hơn, vốn chi nhánh mới nhiều hơn… Kim cương và Kho báu đi theo bạn sang mọi chi nhánh.
 
 ### Tăng tốc, món hot, khách VIP
 
@@ -57,7 +57,7 @@ Những tính năng này mở dần khi quán phát triển, mỗi lần mở c�
 
 ### Khi vắng mặt
 
-Đóng game hay chuyển sang tab khác một lúc thì quán vẫn bán, tiền dồn vào két. Lúc quay lại sẽ có bảng tiền kiếm được trong lúc vắng mặt. Két có sức chứa giới hạn: đầy rồi thì ngừng tích thêm (không mất phần đã tích), nên ghé quán đều đặn là lời nhất. Nâng **Két sắt lớn** ở Kho báu để két chứa được lâu hơn, tới một mức trần.
+Đóng game hay chuyển sang tab khác một lúc thì quán vẫn bán, tiền dồn vào két. Lúc quay lại sẽ có bảng tiền kiếm được trong lúc vắng mặt. Két chứa được tiền của khoảng một giấc ngủ: đầy rồi thì ngừng tích thêm (không mất phần đã tích), nên ghé quán mỗi ngày là lời nhất.
 
 ### Cài đặt
 

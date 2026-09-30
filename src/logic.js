@@ -73,6 +73,18 @@ export function buyVault(S, id) {
   return true;
 }
 const vf = (S, id) => vaultLv(S, id) * vaultDef(id).per;
+// Món đã bỏ khỏi Kho báu mà bản lưu cũ còn giữ cấp: gỡ ra và hoàn đủ kim cương đã tiêu cho nó.
+// Trả về số kim cương vừa hoàn (0 nếu không có gì để hoàn).
+export function refundRemovedVault(S) {
+  let back = 0;
+  const kept = {};
+  for (const [id, lv] of Object.entries(S.vault || {})) {
+    if (vaultDef(id)) { kept[id] = lv; continue; }
+    for (let i = 0; i < lv; i++) back += VAULT_COST[Math.min(i, VAULT_COST.length - 1)];
+  }
+  if (back) { S.vault = kept; S.gems += back; }
+  return back;
+}
 
 /* ---------- tính năng mở dần theo tiến độ ---------- */
 export function featureOn(S, key) {
@@ -390,9 +402,9 @@ export function rate(S, D = derived(S)) {
   const queue = D.queue / (walkIn + C + 0.55);
   return Math.min(1 / D.gap, D.staff / C, cap, queue) * P * EFF;
 }
-// Tiền lúc vắng mặt: két chứa offlineCapH giờ, Kho báu "Két sắt lớn" nới thêm, không vượt trần offlineMaxH.
-// Két đầy thì ngừng tích (vắng lâu hơn vẫn nhận đủ phần trong két, không mất trắng); không tính tăng tốc.
-export const offlineCapH = S => Math.min(CFG.offlineMaxH, CFG.offlineCapH + vf(S, 'offline'));
+// Tiền lúc vắng mặt: két chứa offlineCapH giờ, như nhau với mọi người. Két đầy thì ngừng tích
+// (vắng lâu hơn vẫn nhận đủ phần trong két, không mất trắng); không tính tăng tốc.
+export const offlineCapH = () => CFG.offlineCapH;
 export const offlineSecs = (S, secs) => Math.min(Math.max(0, secs), offlineCapH(S) * 3600);
 export const offlineRate = S => rate(S, derived(S, { noBoost: true }));
 

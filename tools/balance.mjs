@@ -6,7 +6,7 @@ import * as L from '../src/logic.js';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const PAYBACK = 600, DT = 0.1;
-const VAULT_PICK = ['profit', 'prep', 'spawn', 'walk', 'vip', 'start', 'boost', 'offline'];
+const VAULT_PICK = ['profit', 'prep', 'spawn', 'walk', 'vip', 'start', 'boost'];
 
 // Việc cần làm cho nhiệm vụ t: { cost, go() } hoặc null nếu chưa làm được (ví dụ phải mở trạm trước).
 function taskAction(S, t) {
