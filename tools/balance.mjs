@@ -35,7 +35,7 @@ function bestBuy(S) {
   L.upgList(S).forEach(u => c.push({ cost: u.cost, gain: gainOf(S, () => { S.upg[u.id] = true; }, () => { delete S.upg[u.id]; }), go: () => L.buyUpgrade(S, u.id) }));
   return c.filter(x => x.gain > 0).map(x => ({ ...x, pay: x.cost / x.gain })).sort((a, b) => a.pay - b.pay)[0] || null;
 }
-function decide(S) {
+export function decide(S) {
   L.tasks(S).forEach(t => { if (t.done && !t.claimed) L.claimTask(S, t.i); });
   // người chơi thật bấm tăng tốc mỗi khi sẵn sàng và tiêu kim cương ở Kho báu, ưu tiên buff tăng tiền bán
   L.activateBoost(S);
@@ -82,11 +82,47 @@ export function playAll(seed = 11) {
   return out;
 }
 
+// Người chơi "đi ngủ": mỗi ngày chơi activeMin phút rồi vắng sleepH giờ, về nhận đủ tiền vắng mặt (chặn theo két).
+// Trả về số ngày và tổng số phút đã thật sự chơi để xong cả chuỗi. Dùng để kiểm tiền vắng mặt không cho đi tắt:
+// tổng phút chơi phải xấp xỉ người chơi liên tục, vì nhiệm vụ đếm khách chỉ tiến lên khi quán mở.
+export function playSleeper(activeMin = 20, sleepH = 8, seed = 11, maxDays = 60) {
+  const rng = seeded(seed), S = L.freshState();
+  let played = 0;
+  for (let day = 1; day <= maxDays; day++) {
+    let W = L.newWorld(S);
+    for (let t = 0, next = 0; t < activeMin * 60; t += DT) {
+      L.step(S, W, DT, rng);
+      const vw = L.vipWaiting(W);
+      if (vw) L.serveVip(S, W, vw.id, 'perfect');
+      played += DT;
+      if (t >= next) {
+        next = t + 0.5;
+        while (decide(S));
+        if (L.allClaimed(S)) {
+          if (L.isLastShop(S)) return { ok: true, days: day, played };
+          L.moveShop(S);
+          W = L.newWorld(S);
+        }
+      }
+    }
+    const secs = sleepH * 3600;
+    L.tickBoost(S, secs);
+    const got = L.offlineRate(S) * L.offlineSecs(S, secs);
+    S.money += got; S.earned += got; S.life.earned += got;
+  }
+  return { ok: false, days: maxDays, played };
+}
+
 if (process.argv[1] && process.argv[1].endsWith('balance.mjs')) {
+  let total = 0;
   for (const r of playAll()) {
+    total += r.t;
     console.log(`${r.shop}: ${r.ok ? 'xong' : 'CHƯA XONG'} sau ${(r.t / 60).toFixed(1)} phút · két ${L.fmt(r.money)}`);
     console.log('  nhận thưởng lúc (phút): ' + r.marks.map(m => (m / 60).toFixed(1)).join(' · '));
     const dev = r.est.filter(e => e.real > 0).map(e => e.guess / e.real);
     console.log('  ước lượng/thật: ' + dev.filter((_, i) => i % 3 === 0).map(x => x.toFixed(2)).join(' '));
   }
+  const s = playSleeper();
+  console.log(`Chơi liên tục: xong chuỗi sau ${(total / 60).toFixed(0)} phút chơi.`);
+  console.log(`Chơi 20 phút/ngày, ngủ 8 giờ: ${s.ok ? 'xong' : 'CHƯA XONG'} sau ${s.days} ngày, ${(s.played / 60).toFixed(0)} phút chơi thật.`);
 }

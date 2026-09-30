@@ -2,7 +2,7 @@
 // nhiệm vụ và chuyển quán, hướng dẫn, lưu trữ, và mô phỏng cân bằng ba quán trên engine thật.
 import { CFG, LAYOUT, SHOPS, BEARS } from '../src/data.js';
 import * as L from '../src/logic.js';
-import { playAll, seeded } from './balance.mjs';
+import { playAll, playSleeper, seeded } from './balance.mjs';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.log('  ✗ ' + msg); } };
@@ -203,7 +203,14 @@ console.log('Kim cương, Kho báu, tăng tốc, khách VIP, món hot');
   ok(Math.abs(L.profitOf(S, 'den') / p0 - (1 + 2 * VAULT.find(v => v.id === 'profit').per)) < 1e-9, 'buff "Công thức bí truyền" nhân tiền mỗi ly');
   S.gems = 1e6; while (L.buyVault(S, 'offline'));
   ok(L.vaultLv(S, 'offline') === VAULT.find(v => v.id === 'offline').max && L.vaultCost(S, 'offline') == null, 'buff dừng ở cấp tối đa');
-  ok(L.offlineCapH(S) === CFG.offlineCapH + L.vaultLv(S, 'offline') && L.offlineSecs(S, 1e9) === L.offlineCapH(S) * 3600, '"Két sắt lớn" cộng giờ tính tiền lúc vắng mặt');
+  ok(L.offlineCapH(S) === CFG.offlineMaxH && L.offlineSecs(S, 1e9) === CFG.offlineMaxH * 3600, `mua kịch "Két sắt lớn" thì két chứa đúng trần ${CFG.offlineMaxH} giờ`);
+  {
+    const K = L.freshState(), per = VAULT.find(v => v.id === 'offline').per;
+    K.vault = { offline: 1 };
+    ok(L.offlineCapH(K) === CFG.offlineCapH + per, 'mỗi cấp "Két sắt lớn" nới két thêm đúng số giờ');
+    K.vault = { offline: 99 };   // bản lưu cũ (thời Két sắt lớn có 4 cấp) hay mọi nguồn cộng giờ khác
+    ok(L.offlineCapH(K) === CFG.offlineMaxH && L.offlineSecs(K, 30 * 3600) === CFG.offlineMaxH * 3600, `không nguồn nào vượt được trần ${CFG.offlineMaxH} giờ; vắng lâu hơn vẫn nhận đủ phần trong két`);
+  }
   // tăng tốc
   const B = L.freshState();
   ok(!L.activateBoost(B), 'tăng tốc chưa mở ở đầu game thì không bấm được');
@@ -516,6 +523,10 @@ console.log('Mô phỏng cân bằng cả chuỗi quán (người chơi giả mu
     ok(Math.max(...gaps) / 60 < 7, `${r.shop}: không phải chờ quá 7 phút giữa hai lần nhận thưởng (dài nhất ${(Math.max(...gaps) / 60).toFixed(1)})`);
   });
   ok(run.length === SHOPS.length, 'chơi qua được cả chuỗi quán');
+  // tiền vắng mặt (két đầy 8 giờ mỗi đêm) không được cho đi tắt: tổng phút chơi thật phải gần bằng người chơi liên tục
+  const cont = run.reduce((a, r) => a + r.t, 0) / 60, sl = playSleeper(20, CFG.offlineMaxH);
+  console.log(`  Chơi 20 phút/ngày, ngủ ${CFG.offlineMaxH} giờ: xong sau ${sl.days} ngày, ${(sl.played / 60).toFixed(0)} phút chơi thật (liên tục: ${cont.toFixed(0)} phút)`);
+  ok(sl.ok && sl.played / 60 >= cont * 0.85, 'ngủ dậy nhận đầy két cũng không đi tắt được chuỗi quán (nhiệm vụ đếm khách vẫn giữ nhịp)');
 }
 
 console.log(`\n${passes} đạt, ${fails} trượt`);

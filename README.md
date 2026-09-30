@@ -57,7 +57,7 @@ Những tính năng này mở dần khi quán phát triển, mỗi lần mở c�
 
 ### Khi vắng mặt
 
-Đóng game hay chuyển sang tab khác một lúc thì quán vẫn bán. Lúc quay lại sẽ có bảng tiền kiếm được trong lúc vắng mặt.
+Đóng game hay chuyển sang tab khác một lúc thì quán vẫn bán, tiền dồn vào két. Lúc quay lại sẽ có bảng tiền kiếm được trong lúc vắng mặt. Két có sức chứa giới hạn: đầy rồi thì ngừng tích thêm (không mất phần đã tích), nên ghé quán đều đặn là lời nhất. Nâng **Két sắt lớn** ở Kho báu để két chứa được lâu hơn, tới một mức trần.
 
 ### Cài đặt
 

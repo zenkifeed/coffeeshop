@@ -390,8 +390,9 @@ export function rate(S, D = derived(S)) {
   const queue = D.queue / (walkIn + C + 0.55);
   return Math.min(1 / D.gap, D.staff / C, cap, queue) * P * EFF;
 }
-// Tiền lúc vắng mặt: tính tối đa offlineCapH giờ, Kho báu "Két sắt lớn" cộng thêm giờ; không tính tăng tốc.
-export const offlineCapH = S => CFG.offlineCapH + vf(S, 'offline');
+// Tiền lúc vắng mặt: két chứa offlineCapH giờ, Kho báu "Két sắt lớn" nới thêm, không vượt trần offlineMaxH.
+// Két đầy thì ngừng tích (vắng lâu hơn vẫn nhận đủ phần trong két, không mất trắng); không tính tăng tốc.
+export const offlineCapH = S => Math.min(CFG.offlineMaxH, CFG.offlineCapH + vf(S, 'offline'));
 export const offlineSecs = (S, secs) => Math.min(Math.max(0, secs), offlineCapH(S) * 3600);
 export const offlineRate = S => rate(S, derived(S, { noBoost: true }));
 

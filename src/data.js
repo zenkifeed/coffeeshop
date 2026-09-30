@@ -10,7 +10,8 @@ export const CFG = {
   take: 0.9,                 // giây gấu đứng ở quầy chào và ghi món của khách trước khi đi pha
   queue: 3,                  // số khách đứng chờ ở quầy lúc đầu
   staff: 1,                  // số pha chế lúc đầu
-  offlineCapH: 2,            // tiền lúc vắng mặt tính tối đa 2 giờ
+  offlineCapH: 2,            // tiền lúc vắng mặt: két chứa 2 giờ lúc đầu, Kho báu "Két sắt lớn" nới thêm
+  offlineMaxH: 8,            // trần cứng của két, mọi nguồn cộng giờ đều bị chặn ở đây (nâng trần = hướng mở rộng sau này)
   offlineMin: 60,            // vắng dưới 60 giây thì không hiện bảng tiền vắng mặt
   backupEvery: 300,          // giây chơi giữa hai bản dự phòng
   // kim cương: tiền giữ qua mọi chi nhánh, dùng ở Kho báu
@@ -44,7 +45,7 @@ export const VAULT = [
   { id: 'walk',    n: 'Giày êm cho gấu',     d: 'Gấu đi nhanh hơn 10% mỗi cấp',                   max: 5, per: 0.1 },
   { id: 'prep',    n: 'Tay nghề lão luyện',  d: 'Pha nhanh hơn 10% mỗi cấp',                      max: 5, per: 0.1 },
   { id: 'spawn',   n: 'Khách quen',          d: 'Khách tới đông hơn 10% mỗi cấp',                 max: 5, per: 0.1 },
-  { id: 'offline', n: 'Két sắt lớn',         d: 'Tiền lúc vắng mặt tính thêm 1 giờ mỗi cấp',      max: 4, per: 1 },
+  { id: 'offline', n: 'Két sắt lớn',         d: 'Két tiền vắng mặt chứa thêm 2 giờ mỗi cấp',      max: 3, per: 2 },
   { id: 'boost',   n: 'Cà phê đậm đặc',      d: 'Tăng tốc kéo dài thêm 1 phút mỗi cấp',           max: 3, per: 60 },
   { id: 'vip',     n: 'Thẻ thành viên',      d: 'Khách VIP ghé thường hơn 25% mỗi cấp',           max: 3, per: 0.25 },
   { id: 'start',   n: 'Vốn khởi nghiệp',     d: 'Chi nhánh mới bắt đầu với thêm 50% vốn mỗi cấp', max: 3, per: 0.5 },

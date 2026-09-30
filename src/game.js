@@ -797,7 +797,7 @@ function settings() {
     <div class="set"><button data-tap data-o="music"><span>Nhạc nền</span><b class="${musicOn() ? 'on' : ''}">${onOff(musicOn())}</b></button>
     <button data-tap data-o="sound"><span>Âm thanh hiệu ứng</span><b class="${opts.sound ? 'on' : ''}">${onOff(opts.sound)}</b></button>
     <button data-tap data-o="haptic"><span>Rung khi chạm</span><b class="${opts.haptic ? 'on' : ''}">${onOff(opts.haptic)}</b></button></div>
-    <p class="muted small">Nhạc nền và âm thanh hiệu ứng bật tắt riêng. Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt, tính tối đa ${L.offlineCapH(S)} giờ (Kho báu có thể tăng thêm). Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
+    <p class="muted small">Nhạc nền và âm thanh hiệu ứng bật tắt riêng. Game tự lưu mỗi 10 giây. Đóng game thì quán vẫn bán: lần sau mở lại được nhận tiền lúc vắng mặt. Két hiện chứa tối đa ${L.offlineCapH(S)} giờ${L.offlineCapH(S) < CFG.offlineMaxH ? ` (Kho báu nới được tới ${CFG.offlineMaxH} giờ)` : ''}, đầy rồi thì ngừng tích. Máy bật "giảm chuyển động" thì rung lắc màn hình tự dịu đi.</p>`,
   [['Khôi phục bản tự lưu', () => restoreDlg(settings)],
     ['Chơi lại từ đầu', () => modal('<h2>Xoá quán và chơi lại?</h2><p>Mọi tiến trình sẽ mất, chỉ giữ tên quán.</p>', [['Huỷ', settings], ['Xoá và chơi lại', () => applyState(null, 'Đã mở quán mới'), 1]])],
     ['Xong', () => {}, 1]]);
@@ -911,10 +911,20 @@ function offlineDlg(since, next = () => {}) {
   if (!since || secs < CFG.offlineMin) return next();
   const g = Math.round(L.offlineRate(S) * L.offlineSecs(S, secs));
   if (g <= 0) return next();
-  const capped = secs > L.offlineCapH(S) * 3600;
+  // thanh két: cả thanh là trần offlineMaxH; phần đã tích, phần còn trống của két, phần chưa nới (khoá)
+  const capH = L.offlineCapH(S), maxH = CFG.offlineMaxH, capped = secs > capH * 3600;
+  const pct = h => (h / maxH * 100).toFixed(1) + '%';
+  const more = capH < maxH && L.featureOn(S, 'vault')
+    ? `<p class="muted small">Nâng <b>Két sắt lớn</b> ở Kho báu để két chứa được tới ${maxH} giờ.</p>` : '';
   modal(`<div class="wel-hero">${ICON.clock}</div><h2>Quán vẫn bán khi bạn vắng</h2>
-    <p>Bạn vắng <b>${durText(secs)}</b>. Các bạn gấu vẫn pha và thu tiền${capped ? `, tính tối đa ${L.offlineCapH(S)} giờ` : ''}.</p>
-    <div class="big-money" id="offAmt">+0</div>`, [[`Nhận ${fmt(g)}`, () => {
+    <p>Bạn vắng <b>${durText(secs)}</b>. Các bạn gấu vẫn pha và thu tiền vào két.</p>
+    <div class="big-money" id="offAmt">+0</div>
+    <div class="offbar${capped ? ' full' : ''}" role="img" aria-label="Két tiền vắng mặt: đã tích ${durText(Math.min(secs, capH * 3600))} trên ${capH} giờ">
+      <i class="fill" style="width:${pct(Math.min(secs / 3600, capH))}"></i>${capH < maxH ? `<i class="lock" style="left:${pct(capH)}"></i>` : ''}
+    </div>
+    <div class="offmeta"><span>${capped ? '<b>Két đã đầy</b>' : `Đã tích ${durText(secs)}`}</span><span>Két chứa ${capH}/${maxH} giờ</span></div>
+    ${capped ? `<p class="small offfull">Két đầy từ ${durText(secs - capH * 3600)} trước, thời gian sau đó không tích thêm tiền. Ghé quán thường hơn để không phí nhé!</p>` : ''}
+    ${more}`, [[`Nhận ${fmt(g)}`, () => {
     S.money += g; S.earned += g; S.life.earned += g;
     save();
     const [x, y] = centerOf($('hMoneyBox'));

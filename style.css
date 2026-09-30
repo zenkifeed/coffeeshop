@@ -214,6 +214,15 @@ button.ghost:active { box-shadow: 0 0 0 var(--ink); }
 .btns:empty { display: none; }
 #modal.top { align-items: flex-start; padding-top: calc(env(safe-area-inset-top, 0px) + 12px); }
 .big-money { margin: 8px 0 2px; text-align: center; font-size: 34px; font-weight: 800; color: #c9912a; -webkit-text-stroke: 1px #fff; font-variant-numeric: tabular-nums; }
+/* két tiền vắng mặt: cả thanh là trần giờ tối đa, vàng = đã tích, sọc xám = phần két chưa nới ở Kho báu */
+.offbar { position: relative; height: 16px; margin: 10px 2px 4px; border-radius: 9px; background: #f1e4d0; border: 2.5px solid var(--ink); overflow: hidden; }
+.offbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#ffd66b, #f0b43c); animation: offFill .9s var(--ease-out) both; transform-origin: left; }
+.offbar.full .fill { background: linear-gradient(#ff9a6b, #e25b4a); }
+.offbar .lock { position: absolute; top: 0; bottom: 0; right: 0; border-left: 2px solid var(--ink); background: repeating-linear-gradient(-45deg, #d9c7ad 0 5px, #e8dac6 5px 10px); }
+@keyframes offFill { from { transform: scaleX(0); } }
+.offmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--soft); font-variant-numeric: tabular-nums; }
+.offmeta b { color: var(--red); }
+.offfull { margin: 6px 0 0; color: var(--red); font-weight: 600; }
 
 /* ---------- đổi tên quán ---------- */
 button.ren { display: inline-flex; align-items: center; gap: 5px; flex: none; }
@@ -319,7 +328,7 @@ button.ren svg { width: 18px; height: 18px; }
 }
 /* Giảm chuyển động: bỏ lắc, nhún, trượt dài; giữ mờ dần, chớp màu và nảy nhỏ để phản hồi không mất. */
 @media (prefers-reduced-motion: reduce) {
-  .breathe, .lbl .up, .lbl.lock.can, #goal.ready, .sp-in .logo, .sp-in .enter, .sp-wait, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full, .wel-hero, .trow .claim, .bub.vip.go { animation: none !important; }
+  .breathe, .lbl .up, .lbl.lock.can, #goal.ready, .sp-in .logo, .sp-in .enter, .sp-wait, .sign-prev.flip .board, .dice.roll svg, .rn-field.shake, #rnCount.full, .wel-hero, .trow .claim, .bub.vip.go, .offbar .fill { animation: none !important; }
   .coach-glow { animation: none !important; box-shadow: 0 0 0 4px #ffd23fdd, 0 3px 0 var(--ink) !important; }
   .sheet-card.enter, .trow, #curtain.in { animation-name: fadeIn !important; }
   .float { animation-name: fadeIn !important; animation-direction: reverse !important; }
